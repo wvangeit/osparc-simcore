@@ -7,6 +7,7 @@ from typing import Any
 from uuid import UUID
 
 import httpx
+import pydantic
 from cryptography import fernet
 from fastapi import FastAPI, HTTPException
 from httpx import Response
@@ -27,6 +28,7 @@ from models_library.api_schemas_webserver.wallets import (
 from models_library.clusters import ClusterID
 from models_library.generics import Envelope
 from models_library.projects import ProjectID
+from models_library.projects_nodes import NodeID
 from models_library.rest_pagination import Page
 from models_library.utils.fastapi_encoders import jsonable_encoder
 from pydantic import PositiveInt, ValidationError
@@ -133,7 +135,10 @@ class AuthSession:
 
     @classmethod
     def create(
-        cls, app: FastAPI, session_cookies: dict, product_header: dict[str, str]
+        cls,
+        app: FastAPI,
+        session_cookies: dict,
+        product_header: dict[str, str],
     ) -> "AuthSession":
         api = WebserverApi.get_instance(app)
         assert api  # nosec
@@ -230,7 +235,12 @@ class AuthSession:
         return self._get_data_or_raise(resp)
 
     async def _page_projects(
-        self, *, limit: int, offset: int, show_hidden: bool, search: str | None = None
+        self,
+        *,
+        limit: int,
+        offset: int,
+        show_hidden: bool,
+        search: str | None = None,
     ):
         assert 1 <= limit <= MAXIMUM_NUMBER_OF_ITEMS_PER_PAGE  # nosec
         assert offset >= 0  # nosec
@@ -392,6 +402,58 @@ class AuthSession:
             assert data  # nosec
             return data
 
+    async def update_project_inputs(
+        self,
+        project_id: ProjectID,
+        new_inputs: dict[NodeID, dict[str, pydantic.typing.Any]],
+    ) -> ProjectMetadataGet:
+        with _handle_webserver_api_errors():
+            response = await self.client.patch(
+                f"/projects/{project_id}/inputs",
+                cookies=self.session_cookies,
+                json=jsonable_encoder(new_inputs),
+            )
+            response.raise_for_status()
+            data = (
+                Envelope[dict[NodeID, dict[str, pydantic.typing.Any]]]
+                .parse_raw(response.text)
+                .data
+            )
+            assert data  # nosec
+            return data
+
+    async def get_project_inputs(
+        self, project_id: ProjectID
+    ) -> Envelope[dict[NodeID, dict[str, pydantic.typing.Any]]]:
+        with _handle_webserver_api_errors():
+            response = await self.client.get(
+                f"/projects/{project_id}/inputs",
+                cookies=self.session_cookies,
+            )
+
+            # response.raise_for_status()
+
+            data = self._get_data_or_raise(
+                response,
+                {
+                    status.HTTP_404_NOT_FOUND: ProjectNotFoundError(
+                        project_id=project_id
+                    )
+                },
+            )
+
+            """
+            data = (
+                Envelope[dict[NodeID, NodeInputGet]]
+                .parse_raw(response.text)
+                .data
+            )
+            """
+
+            assert data is not None  # nosec
+
+            return data
+
     async def get_project_node_pricing_unit(
         self, project_id: UUID, node_id: UUID
     ) -> PricingUnitGet | None:
@@ -495,7 +557,10 @@ def setup(app: FastAPI, settings: WebServerSettings | None = None) -> None:
     assert settings is not None  # nosec
 
     setup_client_instance(
-        app, WebserverApi, api_baseurl=settings.api_base_url, service_name="webserver"
+        app,
+        WebserverApi,
+        api_baseurl=settings.api_base_url,
+        service_name="webserver",
     )
 
     def _on_startup() -> None:
