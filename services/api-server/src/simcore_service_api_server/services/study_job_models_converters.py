@@ -36,7 +36,7 @@ def create_job_outputs_from_project_outputs(
 ) -> JobOutputs:
     results: dict[str, ArgumentTypes] = {}
 
-    for node_id, node_dict in project_outputs.items():
+    for _, node_dict in project_outputs.items():
         name = node_dict["label"]
         results[name] = node_dict["value"]
 

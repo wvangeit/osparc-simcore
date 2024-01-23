@@ -120,6 +120,8 @@ async def delete_studies_job(
     webserver_api: Annotated[AuthSession, Depends(get_webserver_session)],
 ):
     """Deletes an existing study job"""
+    job_name = _compose_job_resource_name(study_id, job_id)
+    _logger.debug("Deleting Job '%s'", job_name)
 
     try:
         await webserver_api.delete_project(project_id=job_id)
@@ -164,7 +166,6 @@ async def stop_study_job(
     study_id: StudyID,
     job_id: JobID,
     user_id: Annotated[PositiveInt, Depends(get_current_user_id)],
-    webserver_api: Annotated[AuthSession, Depends(get_webserver_session)],
     director2_api: Annotated[DirectorV2Api, Depends(get_api_client(DirectorV2Api))],
 ):
     job_name = _compose_job_resource_name(study_id, job_id)
@@ -206,6 +207,9 @@ async def get_study_job_outputs(
     job_id: JobID,
     webserver_api: Annotated[AuthSession, Depends(get_webserver_session)],
 ):
+    job_name = _compose_job_resource_name(study_id, job_id)
+    _logger.debug("Getting Job Outputs for '%s'", job_name)
+
     project_outputs = await webserver_api.get_project_outputs(job_id)
     job_outputs = create_job_outputs_from_project_outputs(job_id, project_outputs)
 

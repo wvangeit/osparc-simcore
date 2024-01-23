@@ -1,3 +1,6 @@
+# pylint: disable=too-many-public-methods
+
+
 import json
 import logging
 import urllib.parse
@@ -431,7 +434,7 @@ class AuthSession:
                 cookies=self.session_cookies,
             )
 
-            # response.raise_for_status()
+            response.raise_for_status()
 
             data = self._get_data_or_raise(
                 response,
@@ -441,14 +444,6 @@ class AuthSession:
                     )
                 },
             )
-
-            """
-            data = (
-                Envelope[dict[NodeID, NodeInputGet]]
-                .parse_raw(response.text)
-                .data
-            )
-            """
 
             assert data is not None  # nosec
 
