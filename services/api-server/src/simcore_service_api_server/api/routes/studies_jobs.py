@@ -6,6 +6,7 @@ from fastapi.responses import RedirectResponse
 from pydantic.types import PositiveInt
 
 from ...models.pagination import Page, PaginationParams
+from ...models.schemas.errors import ErrorGet
 from ...models.schemas.jobs import (
     Job,
     JobID,
@@ -83,7 +84,7 @@ async def create_study_job(
             study_key=study_id, project=project, job_inputs=job_inputs
         )
 
-        # assert job.name == _compose_job_resource_name(study_id, job.id)
+        assert job.name == _compose_job_resource_name(study_id, job.id)
 
         return job
 
@@ -110,11 +111,23 @@ async def get_study_job(
 @router.delete(
     "/{study_id:uuid}/jobs/{job_id:uuid}",
     status_code=status.HTTP_204_NO_CONTENT,
+    responses={status.HTTP_404_NOT_FOUND: {"model": ErrorGet}},
     include_in_schema=API_SERVER_DEV_FEATURES_ENABLED,
 )
-async def delete_study_job(study_id: StudyID, job_id: JobID):
-    msg = f"delete study job study_id={study_id!r} job_id={job_id!r}.  SEE https://github.com/ITISFoundation/osparc-simcore/issues/4111"
-    raise NotImplementedError(msg)
+async def delete_studies_job(
+    study_id: StudyID,
+    job_id: JobID,
+    webserver_api: Annotated[AuthSession, Depends(get_webserver_session)],
+):
+    """Deletes an existing study job"""
+
+    try:
+        await webserver_api.delete_project(project_id=job_id)
+    except ProjectNotFoundError:
+        return create_error_json_response(
+            f"Cannot find job={job_id} to delete",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
 
 
 @router.post(
@@ -129,6 +142,9 @@ async def start_study_job(
     webserver_api: Annotated[AuthSession, Depends(get_webserver_session)],
     director2_api: Annotated[DirectorV2Api, Depends(get_api_client(DirectorV2Api))],
 ):
+    job_name = _compose_job_resource_name(study_id, job_id)
+    _logger.debug("Starting Job '%s'", job_name)
+
     await webserver_api.start_project(project_id=job_id)
 
     return await inspect_study_job(
@@ -151,7 +167,7 @@ async def stop_study_job(
     webserver_api: Annotated[AuthSession, Depends(get_webserver_session)],
     director2_api: Annotated[DirectorV2Api, Depends(get_api_client(DirectorV2Api))],
 ):
-    job_name = f"jobs/{study_id}"  # TODO improve#_compose_job_resource_name(solver_key, version, job_id)
+    job_name = _compose_job_resource_name(study_id, job_id)
     _logger.debug("Stopping Job '%s'", job_name)
 
     await director2_api.stop_computation(job_id, user_id)
@@ -186,6 +202,7 @@ async def inspect_study_job(
     include_in_schema=API_SERVER_DEV_FEATURES_ENABLED,
 )
 async def get_study_job_outputs(
+    study_id: StudyID,
     job_id: JobID,
     webserver_api: Annotated[AuthSession, Depends(get_webserver_session)],
 ):

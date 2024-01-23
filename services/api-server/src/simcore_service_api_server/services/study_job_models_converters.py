@@ -66,9 +66,9 @@ def create_job_from_study(
         inputs_checksum=job_inputs.compute_checksum(),
         created_at=project.creation_date,
         runner_name=study_name,
-        url=None,
-        runner_url=None,
-        outputs_url=None,
+        url="https://itis.swiss",
+        runner_url="https://itis.swiss",
+        outputs_url="https://itis.swiss",
     )
 
     return new_job
