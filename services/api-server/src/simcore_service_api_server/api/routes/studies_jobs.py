@@ -15,12 +15,12 @@ from ...models.schemas.jobs import (
     JobOutputs,
     JobStatus,
 )
-from ...models.schemas.studies import StudyID
+from ...models.schemas.studies import Study, StudyID
 from ...services.director_v2 import DirectorV2Api
-from ...services.solver_job_models_converters import (
+from ...services.solver_job_models_converters import create_jobstatus_from_task
+from ...services.study_job_models_converters import (
     create_job_from_study,
     create_job_outputs_from_project_outputs,
-    create_jobstatus_from_task,
     get_project_inputs_from_job_inputs,
 )
 from ...services.webserver import AuthSession, ProjectNotFoundError
@@ -34,10 +34,12 @@ _logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-#
-# - Study maps to project
-# - study-job maps to run??
-#
+def _compose_job_resource_name(study_key, job_id) -> str:
+    """Creates a unique resource name for solver's jobs"""
+    return Job.compose_resource_name(
+        parent_name=Study.compose_resource_name(study_key),  # type: ignore
+        job_id=job_id,
+    )
 
 
 @router.get(
@@ -77,11 +79,11 @@ async def create_study_job(
 
         await webserver_api.update_project_inputs(project.uuid, new_project_inputs)
 
-        # raise Exception(value)
-
         job = create_job_from_study(
-            study_key=project.uuid, project=project, job_inputs=job_inputs
+            study_key=study_id, project=project, job_inputs=job_inputs
         )
+
+        # assert job.name == _compose_job_resource_name(study_id, job.id)
 
         return job
 
@@ -170,7 +172,7 @@ async def inspect_study_job(
     user_id: Annotated[PositiveInt, Depends(get_current_user_id)],
     director2_api: Annotated[DirectorV2Api, Depends(get_api_client(DirectorV2Api))],
 ):
-    job_name = f"jobs/{study_id}"  # TODO improve#_compose_job_resource_name(solver_key, version, job_id)
+    job_name = _compose_job_resource_name(study_id, job_id)
     _logger.debug("Inspecting Job '%s'", job_name)
 
     task = await director2_api.get_computation(job_id, user_id)

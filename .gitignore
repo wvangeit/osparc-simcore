@@ -177,3 +177,5 @@ Untitled*
 services/**/settings-schema.json
 
 tests/public-api/osparc_python_wheels/*
+
+build.sh

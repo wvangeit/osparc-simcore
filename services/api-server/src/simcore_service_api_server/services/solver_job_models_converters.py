@@ -11,7 +11,6 @@ from functools import lru_cache
 import arrow
 import pydantic
 from models_library.api_schemas_webserver.projects import ProjectCreateNew, ProjectGet
-from models_library.generics import Envelope
 from models_library.projects_nodes import InputID, NodeID
 from pydantic import parse_obj_as
 
@@ -242,25 +241,6 @@ def create_job_from_project(
     return job
 
 
-def get_project_inputs_from_job_inputs(
-    project_inputs: dict[NodeID, dict[str, pydantic.typing.Any]],
-    job_inputs: JobInputs,
-) -> Envelope[dict[NodeID, str]]:
-    job_inputs_dict = job_inputs.values
-
-    # TODO make sure all values are set at some point
-
-    new_inputs = []
-    for node_id, node_dict in project_inputs.items():
-        if node_dict["label"] in job_inputs_dict:
-            # node_dict["value"] = job_inputs_dict[node_dict["label"]]
-            new_inputs.append(
-                {"key": node_id, "value": job_inputs_dict[node_dict["label"]]}
-            )
-
-    return new_inputs
-
-
 def create_job_outputs_from_project_outputs(
     job_id: StudyID,
     project_outputs: dict[NodeID, dict[str, pydantic.typing.Any]],
@@ -273,54 +253,6 @@ def create_job_outputs_from_project_outputs(
 
     job_outputs = JobOutputs(job_id=job_id, results=results)
     return job_outputs
-
-
-def create_job_from_study(
-    study_key: StudyID,
-    project: ProjectGet,
-    job_inputs: JobInputs,
-    # url_for: Callable | None = None, # TODO Reenable
-) -> Job:
-    """
-    Given a study, creates a job
-
-    - Complementary from create_project_from_job
-
-    raise ValidationError
-    """
-    # TODO Possibly reenable asserts
-    # assert len(project.workbench) == 1  # nosec
-    # assert solver_version in project.name  # nosec
-    # assert urllib.parse.quote_plus(solver_key) in project.name  # nosec
-
-    # get solver node
-    # node_id = list(project.workbench.keys())[0]
-    # solver_node: Node = project.workbench[node_id]
-    # job_inputs: JobInputs = create_job_inputs_from_node_inputs(
-    #    inputs=solver_node.inputs or {}
-    # )
-
-    # create solver's job
-    # solver_name = Solver.compose_resource_name(solver_key, solver_version)
-    study_name = f"{study_key}"  # TODO do we use the study name here?
-    job = Job(
-        id=study_name,
-        name=f"jobs/{study_name}",  # TODO replace 'job/'
-        inputs_checksum=job_inputs.compute_checksum(),
-        created_at=project.creation_date,  # TODO shouldn't it be the creation date of the job?
-        runner_name=study_name,  # TODO put the correct runner name, if any
-        url=None,  # TODO fill in
-        runner_url=None,  # TODO fill in
-        outputs_url=None,  # TODO fill in
-    )
-
-    # if url_for:
-    #    job = _copy_n_update_urls(job, url_for, solver_key, solver_version)
-    #    assert all(  # nosec
-    #        getattr(job, f) for f in job.__fields__ if f.startswith("url")
-    #    )  # nosec
-
-    return job
 
 
 def create_jobstatus_from_task(task: ComputationTaskGet) -> JobStatus:
