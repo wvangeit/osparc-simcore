@@ -3,6 +3,7 @@
 
 import json
 import logging
+import typing
 import urllib.parse
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -408,8 +409,8 @@ class AuthSession:
     async def update_project_inputs(
         self,
         project_id: ProjectID,
-        new_inputs: dict[NodeID, dict[str, pydantic.typing.Any]],
-    ) -> ProjectMetadataGet:
+        new_inputs: dict[NodeID, dict[str, typing.Any]],
+    ) -> dict[NodeID, dict[str, typing.Any]]:
         with _handle_webserver_api_errors():
             response = await self.client.patch(
                 f"/projects/{project_id}/inputs",
@@ -418,7 +419,7 @@ class AuthSession:
             )
             response.raise_for_status()
             data = (
-                Envelope[dict[NodeID, dict[str, pydantic.typing.Any]]]
+                Envelope[dict[NodeID, dict[str, typing.Any]]]
                 .parse_raw(response.text)
                 .data
             )
@@ -427,7 +428,7 @@ class AuthSession:
 
     async def get_project_inputs(
         self, project_id: ProjectID
-    ) -> Envelope[dict[NodeID, dict[str, pydantic.typing.Any]]]:
+    ) -> Envelope[dict[NodeID, dict[str, typing.Any]]]:
         with _handle_webserver_api_errors():
             response = await self.client.get(
                 f"/projects/{project_id}/inputs",
