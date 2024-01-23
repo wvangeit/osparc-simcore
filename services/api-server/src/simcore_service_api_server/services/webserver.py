@@ -454,6 +454,30 @@ class AuthSession:
 
             return data
 
+    async def get_project_outputs(
+        self, project_id: ProjectID
+    ) -> Envelope[dict[NodeID, dict[str, pydantic.typing.Any]]]:
+        with _handle_webserver_api_errors():
+            response = await self.client.get(
+                f"/projects/{project_id}/outputs",
+                cookies=self.session_cookies,
+            )
+
+            response.raise_for_status()
+
+            data = self._get_data_or_raise(
+                response,
+                {
+                    status.HTTP_404_NOT_FOUND: ProjectNotFoundError(
+                        project_id=project_id
+                    )
+                },
+            )
+
+            assert data is not None  # nosec
+
+            return data
+
     async def get_project_node_pricing_unit(
         self, project_id: UUID, node_id: UUID
     ) -> PricingUnitGet | None:

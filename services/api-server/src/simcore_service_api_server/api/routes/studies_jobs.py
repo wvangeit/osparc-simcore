@@ -19,6 +19,7 @@ from ...models.schemas.studies import StudyID
 from ...services.director_v2 import DirectorV2Api
 from ...services.solver_job_models_converters import (
     create_job_from_study,
+    create_job_outputs_from_project_outputs,
     create_jobstatus_from_task,
     get_project_inputs_from_job_inputs,
 )
@@ -183,11 +184,13 @@ async def inspect_study_job(
     include_in_schema=API_SERVER_DEV_FEATURES_ENABLED,
 )
 async def get_study_job_outputs(
-    study_id: StudyID,
     job_id: JobID,
+    webserver_api: Annotated[AuthSession, Depends(get_webserver_session)],
 ):
-    msg = f"get study job outputs study_id={study_id!r} job_id={job_id!r}. SEE https://github.com/ITISFoundation/osparc-simcore/issues/4177"
-    raise NotImplementedError(msg)
+    project_outputs = await webserver_api.get_project_outputs(job_id)
+    job_outputs = create_job_outputs_from_project_outputs(job_id, project_outputs)
+
+    return job_outputs
 
 
 @router.post(

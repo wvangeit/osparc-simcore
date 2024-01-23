@@ -22,6 +22,7 @@ from ..models.schemas.jobs import (
     ArgumentTypes,
     Job,
     JobInputs,
+    JobOutputs,
     JobStatus,
     PercentageInt,
 )
@@ -258,6 +259,20 @@ def get_project_inputs_from_job_inputs(
             )
 
     return new_inputs
+
+
+def create_job_outputs_from_project_outputs(
+    job_id: StudyID,
+    project_outputs: dict[NodeID, dict[str, pydantic.typing.Any]],
+) -> JobOutputs:
+    results: dict[str, ArgumentTypes] = {}
+
+    for node_id, node_dict in project_outputs.items():
+        name = node_dict["label"]
+        results[name] = node_dict["value"]
+
+    job_outputs = JobOutputs(job_id=job_id, results=results)
+    return job_outputs
 
 
 def create_job_from_study(
