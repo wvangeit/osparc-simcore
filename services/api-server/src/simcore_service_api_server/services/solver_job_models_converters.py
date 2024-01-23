@@ -9,9 +9,8 @@ from datetime import datetime
 from functools import lru_cache
 
 import arrow
-import pydantic
 from models_library.api_schemas_webserver.projects import ProjectCreateNew, ProjectGet
-from models_library.projects_nodes import InputID, NodeID
+from models_library.projects_nodes import InputID
 from pydantic import parse_obj_as
 
 from ..models.basic_types import VersionStr
@@ -21,12 +20,10 @@ from ..models.schemas.jobs import (
     ArgumentTypes,
     Job,
     JobInputs,
-    JobOutputs,
     JobStatus,
     PercentageInt,
 )
 from ..models.schemas.solvers import Solver, SolverKeyId
-from ..models.schemas.studies import StudyID
 from .director_v2 import ComputationTaskGet
 
 # UTILS ------
@@ -239,20 +236,6 @@ def create_job_from_project(
         )  # nosec
 
     return job
-
-
-def create_job_outputs_from_project_outputs(
-    job_id: StudyID,
-    project_outputs: dict[NodeID, dict[str, pydantic.typing.Any]],
-) -> JobOutputs:
-    results: dict[str, ArgumentTypes] = {}
-
-    for node_id, node_dict in project_outputs.items():
-        name = node_dict["label"]
-        results[name] = node_dict["value"]
-
-    job_outputs = JobOutputs(job_id=job_id, results=results)
-    return job_outputs
 
 
 def create_jobstatus_from_task(task: ComputationTaskGet) -> JobStatus:
