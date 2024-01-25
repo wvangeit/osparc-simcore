@@ -2561,6 +2561,38 @@ paths:
       responses:
         '204':
           description: Successful Response
+  /v0/projects/{project_id}/nodes/{node_id}/outputs:
+    patch:
+      tags:
+      - projects
+      - nodes
+      summary: Update Node Outputs
+      operationId: update_node_outputs
+      parameters:
+      - required: true
+        schema:
+          title: Project Id
+          type: string
+        name: project_id
+        in: path
+      - required: true
+        schema:
+          title: Node Id
+          type: string
+        name: node_id
+        in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NodeOutputs'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
   /v0/projects/{project_id}/nodes/{node_id}/resources:
     get:
       tags:
@@ -7264,6 +7296,15 @@ components:
       example:
         service_uuid: 3fa85f64-5717-4562-b3fc-2c963f66afa6
         service_state: unknown
+    NodeOutputs:
+      title: NodeOutputs
+      required:
+      - outputs
+      type: object
+      properties:
+        outputs:
+          title: Outputs
+          type: object
     NodeRetrieve:
       title: NodeRetrieve
       type: object

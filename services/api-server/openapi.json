@@ -1589,14 +1589,12 @@
           "first_name": {
             "title": "First Name",
             "maxLength": 255,
-            "minLength": 1,
             "type": "string",
             "example": "James"
           },
           "last_name": {
             "title": "Last Name",
             "maxLength": 255,
-            "minLength": 1,
             "type": "string",
             "example": "Maxwell"
           },
@@ -1653,14 +1651,12 @@
           "first_name": {
             "title": "First Name",
             "maxLength": 255,
-            "minLength": 1,
             "type": "string",
             "example": "James"
           },
           "last_name": {
             "title": "Last Name",
             "maxLength": 255,
-            "minLength": 1,
             "type": "string",
             "example": "Maxwell"
           }

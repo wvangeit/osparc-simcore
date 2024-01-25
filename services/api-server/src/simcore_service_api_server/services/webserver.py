@@ -21,6 +21,7 @@ from models_library.api_schemas_webserver.projects_metadata import (
     ProjectMetadataGet,
     ProjectMetadataUpdate,
 )
+from models_library.api_schemas_webserver.projects_nodes import NodeOutputs
 from models_library.api_schemas_webserver.resource_usage import (
     PricingUnitGet,
     ServicePricingPlanGet,
@@ -329,6 +330,33 @@ class AuthSession:
             response.raise_for_status()
             data = Envelope[ProjectGet].parse_raw(response.text).data
             assert data is not None
+            return data
+
+    async def update_project(
+        self, project_id: UUID, new_project: ProjectGet
+    ) -> ProjectGet:
+        with _handle_webserver_api_errors():
+            response = await self.client.put(
+                f"/projects/{project_id}",
+                cookies=self.session_cookies,
+                json=jsonable_encoder(new_project),
+            )
+            response.raise_for_status()
+            data = Envelope[ProjectGet].parse_raw(response.text).data
+            assert data is not None
+            return data
+
+    async def update_node_outputs(
+        self, project_id: UUID, node_id: UUID, new_node_outputs: NodeOutputs
+    ) -> NodeOutputs:
+        with _handle_webserver_api_errors():
+            response = await self.client.patch(
+                f"/projects/{project_id}/nodes/{node_id}/outputs",
+                cookies=self.session_cookies,
+                json=jsonable_encoder(new_node_outputs),
+            )
+            response.raise_for_status()
+            data = Envelope[NodeOutputs].parse_raw(response.text).data
             return data
 
     async def get_projects_w_solver_page(

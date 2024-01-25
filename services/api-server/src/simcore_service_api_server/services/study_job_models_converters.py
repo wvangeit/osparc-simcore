@@ -6,19 +6,32 @@
 import pydantic
 from models_library.api_schemas_webserver.projects import ProjectGet
 from models_library.generics import Envelope
-from models_library.projects_nodes import NodeID
+from models_library.projects_nodes import InputID, NodeID
 
+from ..models.domain.projects import InputTypes, SimCoreFileLink
+from ..models.schemas.files import File
 from ..models.schemas.jobs import ArgumentTypes, Job, JobInputs, JobOutputs
 from ..models.schemas.studies import Study, StudyID
 
 
-def get_project_inputs_from_job_inputs(
+def get_project_and_file_inputs_from_job_inputs(
     project_inputs: dict[NodeID, dict[str, pydantic.typing.Any]],
+    file_inputs: dict[InputID, InputTypes],
     job_inputs: JobInputs,
 ) -> Envelope[dict[NodeID, str]]:
     job_inputs_dict = job_inputs.values
 
     # TODO make sure all values are set at some point
+
+    for name, value in job_inputs.values.items():
+        if isinstance(value, File):
+            # FIXME: ensure this aligns with storage policy
+            file_inputs[name] = SimCoreFileLink(
+                store=0,
+                path=f"api/{value.id}/{value.filename}",
+                label=value.filename,
+                eTag=value.e_tag,
+            )
 
     new_inputs = []
     for node_id, node_dict in project_inputs.items():
@@ -27,7 +40,7 @@ def get_project_inputs_from_job_inputs(
                 {"key": node_id, "value": job_inputs_dict[node_dict["label"]]}
             )
 
-    return new_inputs
+    return new_inputs, file_inputs
 
 
 def create_job_outputs_from_project_outputs(
