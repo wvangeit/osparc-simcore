@@ -19,6 +19,7 @@ from ...models.schemas.jobs import (
 from ...models.schemas.studies import Study, StudyID
 from ...services.director_v2 import DirectorV2Api
 from ...services.solver_job_models_converters import create_jobstatus_from_task
+from ...services.storage import StorageApi
 from ...services.study_job_models_converters import (
     create_job_from_study,
     create_job_outputs_from_project_outputs,
@@ -72,6 +73,7 @@ async def create_study_job(
 ):
     try:
         project = await webserver_api.clone_project(project_id=study_id)
+
         project_inputs = await webserver_api.get_project_inputs(project_id=project.uuid)
 
         file_param_nodes = {}
@@ -226,13 +228,17 @@ async def inspect_study_job(
 async def get_study_job_outputs(
     study_id: StudyID,
     job_id: JobID,
+    user_id: Annotated[PositiveInt, Depends(get_current_user_id)],
     webserver_api: Annotated[AuthSession, Depends(get_webserver_session)],
+    storage_client: Annotated[StorageApi, Depends(get_api_client(StorageApi))],
 ):
     job_name = _compose_job_resource_name(study_id, job_id)
     _logger.debug("Getting Job Outputs for '%s'", job_name)
 
     project_outputs = await webserver_api.get_project_outputs(job_id)
-    job_outputs = create_job_outputs_from_project_outputs(job_id, project_outputs)
+    job_outputs = await create_job_outputs_from_project_outputs(
+        job_id, project_outputs, user_id, storage_client
+    )
 
     return job_outputs
 
