@@ -56,7 +56,7 @@ async def create_job_outputs_from_project_outputs(
     for _, node_dict in project_outputs.items():
         name = node_dict["label"]
         value = node_dict["value"]
-        if "store" in value:  # TODO make this more robust
+        if value and "store" in value:  # TODO make this more robust
             path = value["path"]
             file_id: UUID = File.create_id(*path.split("/"))
 
