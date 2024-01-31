@@ -2,6 +2,7 @@
     Helper functions to convert models used in
     services/api-server/src/simcore_service_api_server/api/routes/studies_jobs.py
 """
+import collections.abc
 from uuid import UUID
 
 import pydantic
@@ -56,7 +57,9 @@ async def create_job_outputs_from_project_outputs(
     for _, node_dict in project_outputs.items():
         name = node_dict["label"]
         value = node_dict["value"]
-        if value and "store" in value:  # TODO make this more robust
+        if (
+            value and isinstance(value, collections.abc.Mapping) and "store" in value
+        ):  # TODO make this more robust
             path = value["path"]
             file_id: UUID = File.create_id(*path.split("/"))
 

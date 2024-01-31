@@ -261,7 +261,7 @@ qx.Class.define("osparc.data.model.Node", {
     },
 
     isInteractivePython: function(metaData) {
-      return (metaData && metaData.name && metaData.name === "InteractivePythonservice");
+      return (metaData && metaData.name && (metaData.name === "InteractivePythonservice" || metaData.name === "MapService") );
     },
 
     isComputational: function(metaData) {
