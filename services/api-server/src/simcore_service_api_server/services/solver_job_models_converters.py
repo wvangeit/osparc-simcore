@@ -52,7 +52,9 @@ def now_str() -> str:
 #
 
 
-def create_node_inputs_from_job_inputs(inputs: JobInputs) -> dict[InputID, InputTypes]:
+def create_node_inputs_from_job_inputs(
+    inputs: JobInputs,
+) -> dict[InputID, InputTypes]:
     # map Job inputs with solver inputs
     # TODO: ArgumentType -> InputTypes dispatcher
 
@@ -169,7 +171,10 @@ def _copy_n_update_urls(
     return job.copy(
         update={
             "url": url_for(
-                "get_job", solver_key=solver_key, version=version, job_id=job.id
+                "get_job",
+                solver_key=solver_key,
+                version=version,
+                job_id=job.id,
             ),
             "runner_url": url_for(
                 "get_solver_release",

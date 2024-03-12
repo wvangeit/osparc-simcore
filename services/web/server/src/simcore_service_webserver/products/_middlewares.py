@@ -70,8 +70,10 @@ async def discover_product_middleware(request: web.Request, handler: Handler):
 
         request[RQ_PRODUCT_KEY] = product_name
 
-    assert request.get(RQ_PRODUCT_KEY) is not None or request.path.startswith(  # nosec
-        "/dev/doc"
+    assert (  # nosec
+        request.get(RQ_PRODUCT_KEY) is not None
+        or request.path == "/socket.io/"
+        or request.path.startswith("/dev/doc")
     )
 
     return await handler(request)

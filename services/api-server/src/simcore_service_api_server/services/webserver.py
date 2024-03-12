@@ -1,12 +1,15 @@
-# pylint: disable=R0904
+# pylint: disable=too-many-public-methods
+
 
 import logging
+import typing
 import urllib.parse
 from dataclasses import dataclass
 from functools import partial
 from typing import Any, Mapping
 from uuid import UUID
 
+import pydantic
 from cryptography import fernet
 from fastapi import FastAPI
 from models_library.api_schemas_long_running_tasks.tasks import TaskGet
@@ -17,6 +20,7 @@ from models_library.api_schemas_webserver.projects_metadata import (
     ProjectMetadataGet,
     ProjectMetadataUpdate,
 )
+from models_library.api_schemas_webserver.projects_nodes import NodeOutputs
 from models_library.api_schemas_webserver.resource_usage import (
     PricingUnitGet,
     ServicePricingPlanGet,
@@ -29,6 +33,7 @@ from models_library.basic_types import NonNegativeDecimal
 from models_library.clusters import ClusterID
 from models_library.generics import Envelope
 from models_library.projects import ProjectID
+from models_library.projects_nodes import NodeID
 from models_library.rest_pagination import Page
 from models_library.utils.fastapi_encoders import jsonable_encoder
 from pydantic import PositiveInt
@@ -118,7 +123,10 @@ class AuthSession:
 
     @classmethod
     def create(
-        cls, app: FastAPI, session_cookies: dict, product_header: dict[str, str]
+        cls,
+        app: FastAPI,
+        session_cookies: dict,
+        product_header: dict[str, str],
     ) -> "AuthSession":
         api = WebserverApi.get_instance(app)
         assert api  # nosec
@@ -137,7 +145,12 @@ class AuthSession:
         return self._api.client
 
     async def _page_projects(
-        self, *, limit: int, offset: int, show_hidden: bool, search: str | None = None
+        self,
+        *,
+        limit: int,
+        offset: int,
+        show_hidden: bool,
+        search: str | None = None,
     ):
         assert 1 <= limit <= MAXIMUM_NUMBER_OF_ITEMS_PER_PAGE  # nosec
         assert offset >= 0  # nosec
@@ -262,6 +275,33 @@ class AuthSession:
         assert data is not None
         return data
 
+    @_exception_mapper(_JOB_STATUS_MAP)
+    async def update_project(
+        self, project_id: UUID, new_project: ProjectGet
+    ) -> ProjectGet:
+        response = await self.client.put(
+            f"/projects/{project_id}",
+            cookies=self.session_cookies,
+            json=jsonable_encoder(new_project),
+        )
+        response.raise_for_status()
+        data = Envelope[ProjectGet].parse_raw(response.text).data
+        assert data is not None
+        return data
+
+    @_exception_mapper(_JOB_STATUS_MAP)
+    async def update_node_outputs(
+        self, project_id: UUID, node_id: UUID, new_node_outputs: NodeOutputs
+    ) -> NodeOutputs:
+        response = await self.client.patch(
+            f"/projects/{project_id}/nodes/{node_id}/outputs",
+            cookies=self.session_cookies,
+            json=jsonable_encoder(new_node_outputs),
+        )
+        response.raise_for_status()
+        data = Envelope[NodeOutputs].parse_raw(response.text).data
+        return data
+
     async def get_projects_w_solver_page(
         self, solver_name: str, limit: int, offset: int
     ) -> Page[ProjectGet]:
@@ -353,7 +393,61 @@ class AuthSession:
         assert data  # nosec
         return data
 
-    @_exception_mapper({status.HTTP_404_NOT_FOUND: (status.HTTP_404_NOT_FOUND, None)})
+    async def update_project_inputs(
+        self,
+        project_id: ProjectID,
+        new_inputs: dict[NodeID, dict[str, typing.Any]],
+    ) -> dict[NodeID, dict[str, typing.Any]]:
+        response = await self.client.patch(
+            f"/projects/{project_id}/inputs",
+            cookies=self.session_cookies,
+            json=jsonable_encoder(new_inputs),
+        )
+        response.raise_for_status()
+        data = (
+            Envelope[dict[NodeID, dict[str, typing.Any]]].parse_raw(response.text).data
+        )
+        assert data  # nosec
+        return data
+
+    async def get_project_inputs(
+        self, project_id: ProjectID
+    ) -> Envelope[dict[NodeID, dict[str, typing.Any]]]:
+        response = await self.client.get(
+            f"/projects/{project_id}/inputs",
+            cookies=self.session_cookies,
+        )
+
+        response.raise_for_status()
+
+        data = self._get_data_or_raise(
+            response,
+            {status.HTTP_404_NOT_FOUND: ProjectNotFoundError(project_id=project_id)},
+        )
+
+        assert data is not None  # nosec
+
+        return data
+
+    async def get_project_outputs(
+        self, project_id: ProjectID
+    ) -> Envelope[dict[NodeID, dict[str, pydantic.typing.Any]]]:
+        response = await self.client.get(
+            f"/projects/{project_id}/outputs",
+            cookies=self.session_cookies,
+        )
+
+        response.raise_for_status()
+
+        data = self._get_data_or_raise(
+            response,
+            {status.HTTP_404_NOT_FOUND: ProjectNotFoundError(project_id=project_id)},
+        )
+
+        assert data is not None  # nosec
+
+        return data
+
     async def get_project_node_pricing_unit(
         self, project_id: UUID, node_id: UUID
     ) -> PricingUnitGet | None:
@@ -469,7 +563,10 @@ def setup(app: FastAPI, settings: WebServerSettings | None = None) -> None:
     assert settings is not None  # nosec
 
     setup_client_instance(
-        app, WebserverApi, api_baseurl=settings.api_base_url, service_name="webserver"
+        app,
+        WebserverApi,
+        api_baseurl=settings.api_base_url,
+        service_name="webserver",
     )
 
     def _on_startup() -> None:
