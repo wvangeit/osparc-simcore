@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any, Final
 
+import yaml
 from aws_library.ec2.models import EC2InstanceBootSpecific, EC2InstanceData, EC2Tags
 from fastapi.encoders import jsonable_encoder
 from models_library.api_schemas_clusters_keeper.clusters import (
@@ -21,7 +22,11 @@ from ..core.settings import ApplicationSettings
 from .dask import get_scheduler_url
 
 _DOCKER_COMPOSE_FILE_NAME: Final[str] = "docker-compose.yml"
+_PROMETHEUS_FILE_NAME: Final[str] = "prometheus.yml"
+_PROMETHEUS_WEB_FILE_NAME: Final[str] = "prometheus-web.yml"
 _HOST_DOCKER_COMPOSE_PATH: Final[Path] = Path(f"/{_DOCKER_COMPOSE_FILE_NAME}")
+_HOST_PROMETHEUS_PATH: Final[Path] = Path(f"/{_PROMETHEUS_FILE_NAME}")
+_HOST_PROMETHEUS_WEB_PATH: Final[Path] = Path(f"/{_PROMETHEUS_WEB_FILE_NAME}")
 _HOST_CERTIFICATES_BASE_PATH: Final[Path] = Path("/.dask-sidecar-certificates")
 _HOST_TLS_CA_FILE_PATH: Final[Path] = _HOST_CERTIFICATES_BASE_PATH / "tls_dask_ca.pem"
 _HOST_TLS_CERT_FILE_PATH: Final[Path] = (
@@ -40,6 +45,22 @@ def _base_64_encode(file: Path) -> str:
 def _docker_compose_yml_base64_encoded() -> str:
     file_path = PACKAGE_DATA_FOLDER / _DOCKER_COMPOSE_FILE_NAME
     return _base_64_encode(file_path)
+
+
+@functools.lru_cache
+def _prometheus_yml_base64_encoded() -> str:
+    file_path = PACKAGE_DATA_FOLDER / _PROMETHEUS_FILE_NAME
+    return _base_64_encode(file_path)
+
+
+@functools.lru_cache
+def _prometheus_basic_auth_yml_base64_encoded(
+    prometheus_username: str, prometheus_password: str
+) -> str:
+    web_config = {"basic_auth_users": {prometheus_username: prometheus_password}}
+    yaml_content = yaml.safe_dump(web_config)
+    base64_bytes = base64.b64encode(yaml_content.encode("utf-8"))
+    return base64_bytes.decode("utf-8")
 
 
 def _prepare_environment_variables(
@@ -67,6 +88,7 @@ def _prepare_environment_variables(
         f"DASK_TLS_CA_FILE={_HOST_TLS_CA_FILE_PATH}",
         f"DASK_TLS_CERT={_HOST_TLS_CERT_FILE_PATH}",
         f"DASK_TLS_KEY={_HOST_TLS_KEY_FILE_PATH}",
+        f"DASK_WORKER_SATURATION={app_settings.CLUSTERS_KEEPER_DASK_WORKER_SATURATION}",
         f"DOCKER_IMAGE_TAG={app_settings.CLUSTERS_KEEPER_COMPUTATIONAL_BACKEND_DOCKER_IMAGE_TAG}",
         f"EC2_INSTANCES_NAME_PREFIX={cluster_machines_name_prefix}",
         f"LOG_LEVEL={app_settings.LOG_LEVEL}",
@@ -97,12 +119,12 @@ def create_startup_script(
     )
 
     startup_commands = ec2_boot_specific.custom_boot_scripts.copy()
-
+    assert app_settings.CLUSTERS_KEEPER_PRIMARY_EC2_INSTANCES  # nosec
     if isinstance(
         app_settings.CLUSTERS_KEEPER_COMPUTATIONAL_BACKEND_DEFAULT_CLUSTER_AUTH,
         TLSAuthentication,
     ):
-        assert app_settings.CLUSTERS_KEEPER_PRIMARY_EC2_INSTANCES  # nosec
+
         download_certificates_commands = [
             f"mkdir --parents {_HOST_CERTIFICATES_BASE_PATH}",
             f'aws ssm get-parameter --name "{app_settings.CLUSTERS_KEEPER_PRIMARY_EC2_INSTANCES.PRIMARY_EC2_INSTANCES_SSM_TLS_DASK_CA}" --region us-east-1 --with-decryption --query "Parameter.Value" --output text > {_HOST_TLS_CA_FILE_PATH}',
@@ -116,7 +138,10 @@ def create_startup_script(
             # NOTE: https://stackoverflow.com/questions/41203492/solving-redis-warnings-on-overcommit-memory-and-transparent-huge-pages-for-ubunt
             "sysctl vm.overcommit_memory=1",
             f"echo '{_docker_compose_yml_base64_encoded()}' | base64 -d > {_HOST_DOCKER_COMPOSE_PATH}",
-            "docker swarm init",
+            f"echo '{_prometheus_yml_base64_encoded()}' | base64 -d > {_HOST_PROMETHEUS_PATH}",
+            f"echo '{_prometheus_basic_auth_yml_base64_encoded(app_settings.CLUSTERS_KEEPER_PRIMARY_EC2_INSTANCES.PRIMARY_EC2_INSTANCES_PROMETHEUS_USERNAME, app_settings.CLUSTERS_KEEPER_PRIMARY_EC2_INSTANCES.PRIMARY_EC2_INSTANCES_PROMETHEUS_PASSWORD.get_secret_value())}' | base64 -d > {_HOST_PROMETHEUS_WEB_PATH}",
+            # NOTE: --default-addr-pool is necessary in order to prevent conflicts with AWS node IPs
+            "docker swarm init --default-addr-pool 172.20.0.0/14",
             f"{' '.join(environment_variables)} docker stack deploy --with-registry-auth --compose-file={_HOST_DOCKER_COMPOSE_PATH} dask_stack",
         ]
     )

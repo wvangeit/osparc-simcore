@@ -185,6 +185,18 @@ qx.Class.define("osparc.store.Store", {
       check: "Array",
       init: []
     },
+    pricingPlans: {
+      check: "Array",
+      init: []
+    },
+    pricingUnits: {
+      check: "Array",
+      init: []
+    },
+    billableServices: {
+      check: "Array",
+      init: []
+    },
     portsCompatibility: {
       check: "Object",
       init: {}
@@ -706,6 +718,20 @@ qx.Class.define("osparc.store.Store", {
               store.setCreditPrice(data["usdPerCredit"]);
               resolve(data["usdPerCredit"]);
             }
+          });
+      });
+    },
+
+    getMinimumAmount: function() {
+      const defaultMinimum = 10;
+      return new Promise(resolve => {
+        osparc.data.Resources.fetch("creditPrice", "get")
+          .then(data => {
+            data && ("minPaymentAmountUsd" in data) ? resolve(data["minPaymentAmountUsd"]) : resolve(defaultMinimum)
+          })
+          .catch(err => {
+            console.error(err);
+            resolve(defaultMinimum);
           });
       });
     },

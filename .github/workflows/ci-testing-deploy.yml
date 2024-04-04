@@ -311,7 +311,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -329,7 +329,7 @@ jobs:
       - name: test
         if: always()
         run: ./ci/github/unit-testing/webserver.bash test_with_db 01
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -356,7 +356,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -368,7 +368,7 @@ jobs:
         run: ./ci/github/unit-testing/webserver.bash install
       - name: test
         run: ./ci/github/unit-testing/webserver.bash test_with_db 02
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -395,7 +395,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -407,7 +407,7 @@ jobs:
         run: ./ci/github/unit-testing/webserver.bash install
       - name: test
         run: ./ci/github/unit-testing/webserver.bash test_with_db 03
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -434,7 +434,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -449,7 +449,7 @@ jobs:
       - name: test
         if: always()
         run: ./ci/github/unit-testing/storage.bash test
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -478,7 +478,7 @@ jobs:
       - name: install rclone
         run: sudo ./ci/github/helpers/install_rclone.bash
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -493,7 +493,7 @@ jobs:
       - name: test
         if: always()
         run: ./ci/github/unit-testing/agent.bash test
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -520,7 +520,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -556,7 +556,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -574,7 +574,7 @@ jobs:
       - name: OAS backwards compatibility check
         if: always()
         run: ./ci/github/unit-testing/api-server.bash openapi-diff
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -601,7 +601,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -616,7 +616,7 @@ jobs:
       - name: test
         if: always()
         run: ./ci/github/unit-testing/autoscaling.bash test
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -643,7 +643,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -664,7 +664,7 @@ jobs:
         with:
           name: ${{ github.job }}_docker_logs
           path: ./services/catalog/test_failures
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -691,7 +691,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -716,7 +716,7 @@ jobs:
           source .venv/bin/activate && \
           pushd services/clusters-keeper && \
           make test-ci-unit
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -743,7 +743,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -764,7 +764,7 @@ jobs:
         with:
           name: ${{ github.job }}_docker_logs
           path: ./services/datcore-adapter/test_failures
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -793,20 +793,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-      - name: install uv
-        uses: yezz123/setup-uv@v3
-      - uses: actions/cache@v4
-        id: cache-uv
-        with:
-          path: ~/.cache/uv
-          key: ${{ runner.os }}-${{ github.job }}-python-${{ matrix.python }}-uv
       - name: show system version
         run: ./ci/helpers/show_system_versions.bash
       - name: install
         run: ./ci/github/unit-testing/director.bash install
       - name: test
         run: ./ci/github/unit-testing/director.bash test
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -833,7 +826,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -854,7 +847,7 @@ jobs:
         with:
           name: ${{ github.job }}_docker_logs
           path: ./services/director-v2/test_failures
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -881,7 +874,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -896,7 +889,7 @@ jobs:
       - name: test
         if: always()
         run: ./ci/github/unit-testing/aws-library.bash test
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -923,7 +916,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -938,7 +931,7 @@ jobs:
       - name: test
         if: always()
         run: ./ci/github/unit-testing/dask-task-models-library.bash test
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -965,7 +958,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -980,7 +973,7 @@ jobs:
       - name: test
         if: always()
         run: ./ci/github/unit-testing/dask-sidecar.bash test
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -1007,7 +1000,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -1032,7 +1025,7 @@ jobs:
           source .venv/bin/activate && \
           pushd services/osparc-gateway-server && \
           make test-ci-unit
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -1059,7 +1052,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -1074,7 +1067,7 @@ jobs:
       - name: test
         if: always()
         run: ./ci/github/unit-testing/payments.bash test
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -1101,7 +1094,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -1116,7 +1109,7 @@ jobs:
       - name: test
         if: always()
         run: ./ci/github/unit-testing/dynamic-scheduler.bash test
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -1143,7 +1136,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -1168,7 +1161,7 @@ jobs:
           source .venv/bin/activate && \
           pushd services/resource-usage-tracker && \
           make test-ci-unit
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -1195,7 +1188,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -1210,7 +1203,7 @@ jobs:
       - name: test
         if: always()
         run: ./ci/github/unit-testing/dynamic-sidecar.bash test
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -1237,7 +1230,7 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: "npm"
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -1273,7 +1266,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -1309,7 +1302,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -1324,7 +1317,7 @@ jobs:
       - name: test
         if: always()
         run: ./ci/github/unit-testing/postgres-database.bash test
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -1351,7 +1344,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -1366,7 +1359,7 @@ jobs:
       - name: test
         if: always()
         run: ./ci/github/unit-testing/invitations.bash test
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -1393,7 +1386,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -1408,7 +1401,7 @@ jobs:
       - name: test
         if: always()
         run: ./ci/github/unit-testing/service-integration.bash test
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -1435,7 +1428,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -1450,7 +1443,7 @@ jobs:
       - name: test
         if: always()
         run: ./ci/github/unit-testing/service-library.bash test_all
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -1477,7 +1470,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -1492,7 +1485,7 @@ jobs:
       - name: test
         if: always()
         run: ./ci/github/unit-testing/settings-library.bash test
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -1519,7 +1512,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -1533,7 +1526,7 @@ jobs:
         run: ./ci/github/unit-testing/models-library.bash typecheck
       - name: test
         run: ./ci/github/unit-testing/models-library.bash test
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -1564,7 +1557,7 @@ jobs:
           cache: "pip"
           cache-dependency-path: "packages/notifications-library/requirements/ci.txt"
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -1579,7 +1572,7 @@ jobs:
       - name: test
         if: always()
         run: ./ci/github/unit-testing/notifications-library.bash test
-      - uses: codecov/codecov-action@v3.1.4
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -1608,7 +1601,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -1623,7 +1616,7 @@ jobs:
       - name: test
         if: always()
         run: ./ci/github/unit-testing/simcore-sdk.bash test
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: unittests #optional
 
@@ -1710,7 +1703,7 @@ jobs:
       - name: load docker images
         run: make load-images local-src=/${{ runner.temp }}/build
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -1731,7 +1724,7 @@ jobs:
       - name: cleanup
         if: always()
         run: ./ci/github/integration-testing/webserver.bash clean_up
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: integrationtests #optional
 
@@ -1772,7 +1765,7 @@ jobs:
       - name: load docker images
         run: make load-images local-src=/${{ runner.temp }}/build
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -1793,7 +1786,7 @@ jobs:
       - name: cleanup
         if: always()
         run: ./ci/github/integration-testing/webserver.bash clean_up
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: integrationtests #optional
 
@@ -1834,7 +1827,7 @@ jobs:
       - name: load docker images
         run: make load-images local-src=/${{ runner.temp }}/build
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -1855,7 +1848,7 @@ jobs:
       - name: cleanup
         if: always()
         run: ./ci/github/integration-testing/director-v2.bash clean_up
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: integrationtests #optional
 
@@ -1900,7 +1893,7 @@ jobs:
       - name: install rclone
         run: sudo ./ci/github/helpers/install_rclone.bash
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -1921,7 +1914,7 @@ jobs:
       - name: cleanup
         if: always()
         run: ./ci/github/integration-testing/director-v2.bash clean_up
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: integrationtests #optional
 
@@ -1964,7 +1957,7 @@ jobs:
       - name: install rclone
         run: sudo ./ci/github/helpers/install_rclone.bash
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -1985,7 +1978,7 @@ jobs:
       - name: cleanup
         if: always()
         run: ./ci/github/integration-testing/dynamic-sidecar.bash clean_up
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: integrationtests #optional
 
@@ -2027,7 +2020,7 @@ jobs:
       - name: load docker images
         run: make load-images local-src=/${{ runner.temp }}/build
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -2062,7 +2055,7 @@ jobs:
         run: |
           pushd services/osparc-gateway-server && \
           make down
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: integrationtests #optional
 
@@ -2103,7 +2096,7 @@ jobs:
       - name: load docker images
         run: make load-images local-src=/${{ runner.temp }}/build
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -2124,7 +2117,7 @@ jobs:
       - name: cleanup
         if: always()
         run: ./ci/github/integration-testing/simcore-sdk.bash clean_up
-      - uses: codecov/codecov-action@v4.1.0
+      - uses: codecov/codecov-action@v4.1.1
         with:
           flags: integrationtests
 
@@ -2189,7 +2182,7 @@ jobs:
       - name: load docker images
         run: make load-images local-src=/${{ runner.temp }}/build
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -2250,7 +2243,7 @@ jobs:
       - name: load docker images
         run: make load-images local-src=/${{ runner.temp }}/build
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -2322,7 +2315,7 @@ jobs:
       - name: load docker images
         run: make load-images local-src=/${{ runner.temp }}/build
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -2386,7 +2379,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:
@@ -2450,7 +2443,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: install uv
-        uses: yezz123/setup-uv@v3
+        uses: yezz123/setup-uv@v4
       - uses: actions/cache@v4
         id: cache-uv
         with:

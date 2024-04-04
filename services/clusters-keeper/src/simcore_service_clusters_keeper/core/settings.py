@@ -1,6 +1,6 @@
 import datetime
 from functools import cached_property
-from typing import Any, ClassVar, Final, cast
+from typing import Any, ClassVar, Final, Literal, cast
 
 from aws_library.ec2.models import EC2InstanceBootSpecific, EC2Tags
 from fastapi import FastAPI
@@ -11,7 +11,15 @@ from models_library.basic_types import (
     VersionTag,
 )
 from models_library.clusters import InternalClusterAuthentication
-from pydantic import Field, NonNegativeInt, PositiveInt, parse_obj_as, validator
+from pydantic import (
+    Field,
+    NonNegativeFloat,
+    NonNegativeInt,
+    PositiveInt,
+    SecretStr,
+    parse_obj_as,
+    validator,
+)
 from settings_library.base import BaseCustomSettings
 from settings_library.docker_registry import RegistrySettings
 from settings_library.ec2 import EC2Settings
@@ -154,6 +162,12 @@ class PrimaryEC2InstancesSettings(BaseCustomSettings):
     PRIMARY_EC2_INSTANCES_SSM_TLS_DASK_KEY: str = Field(
         ..., description="Name of the dask TLC key in AWS Parameter Store"
     )
+    PRIMARY_EC2_INSTANCES_PROMETHEUS_USERNAME: str = Field(
+        ..., description="Username for accessing prometheus data"
+    )
+    PRIMARY_EC2_INSTANCES_PROMETHEUS_PASSWORD: SecretStr = Field(
+        ..., description="Password for accessing prometheus data"
+    )
 
     @validator("PRIMARY_EC2_INSTANCES_ALLOWED_TYPES")
     @classmethod
@@ -270,7 +284,9 @@ class ApplicationSettings(BaseCustomSettings, MixinLoggingSettings):
         description="defines the image tag to use for the computational backend sidecar image (NOTE: it currently defaults to use itisfoundation organisation in Dockerhub)",
     )
 
-    CLUSTERS_KEEPER_COMPUTATIONAL_BACKEND_DEFAULT_CLUSTER_AUTH: InternalClusterAuthentication = Field(
+    CLUSTERS_KEEPER_COMPUTATIONAL_BACKEND_DEFAULT_CLUSTER_AUTH: (
+        InternalClusterAuthentication
+    ) = Field(
         ...,
         description="defines the authentication of the clusters created via clusters-keeper (can be None or TLS)",
     )
@@ -278,6 +294,12 @@ class ApplicationSettings(BaseCustomSettings, MixinLoggingSettings):
     CLUSTERS_KEEPER_DASK_NTHREADS: NonNegativeInt = Field(
         ...,
         description="overrides the default number of threads in the dask-sidecars, setting it to 0 will use the default (see description in dask-sidecar)",
+    )
+
+    CLUSTERS_KEEPER_DASK_WORKER_SATURATION: NonNegativeFloat | Literal["inf"] = Field(
+        default="inf",
+        description="override the dask scheduler 'worker-saturation' field"
+        ", see https://selectfrom.dev/deep-dive-into-dask-distributed-scheduler-9fdb3b36b7c7",
     )
 
     SWARM_STACK_NAME: str = Field(

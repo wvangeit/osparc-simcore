@@ -69,6 +69,16 @@ qx.Class.define("osparc.auth.LoginPage", {
           control.setFont("text-18");
           this.getChildControl("main-layout").add(control);
           break;
+        case "science-text-image":
+          control = new qx.ui.basic.Image("osparc/Sim4Life_science_Subline.svg").set({
+            width: 300,
+            height: 24,
+            scale: true,
+            alignX: "center",
+            marginTop: -25
+          });
+          this.getChildControl("main-layout").add(control);
+          break;
         case "pages-stack":
           control = new qx.ui.container.Stack().set({
             allowGrowX: false,
@@ -138,8 +148,8 @@ qx.Class.define("osparc.auth.LoginPage", {
       this.getContentElement().setStyles({
         "background-image": backgroundImage,
         "background-repeat": "no-repeat",
-        "background-size": "contain", // auto width, 85% height
-        "background-position": "0% 100%" // left bottom
+        "background-size": "65% auto, 80% auto", // auto width, 85% height
+        "background-position": "left bottom, left -440px bottom -230px" // left bottom
       });
     },
 
@@ -153,6 +163,9 @@ qx.Class.define("osparc.auth.LoginPage", {
       const mainLayout = this.getChildControl("main-layout");
       this.getChildControl("top-spacer");
       this.getChildControl("logo-w-platform");
+      if (osparc.product.Utils.isProduct("s4lacad")) {
+        this.getChildControl("science-text-image");
+      }
       this.__getLoginStack();
       this.getChildControl("bottom-spacer");
       this.getChildControl("footer");
@@ -304,35 +317,24 @@ qx.Class.define("osparc.auth.LoginPage", {
       const versionLink = new osparc.ui.basic.LinkLabel().set({
         textColor: "text-darker"
       });
-      const staticInfo = osparc.store.StaticInfo.getInstance();
-      const rData = staticInfo.getReleaseData();
-      if (rData) {
-        const releaseDate = rData["date"];
-        const releaseTag = rData["tag"];
-        const releaseUrl = rData["url"];
-        if (releaseDate && releaseTag && releaseUrl) {
-          const date = osparc.utils.Utils.formatDate(new Date(releaseDate));
-          versionLink.set({
-            value: date + " (" + releaseTag + ")&nbsp",
-            url: releaseUrl
-          });
-        }
-      } else {
-        // fallback to old style
-        const platformVersion = osparc.utils.LibVersions.getPlatformVersion();
-        versionLink.setUrl(platformVersion.url);
-        let text = platformVersion.name + " " + platformVersion.version;
-        const platformName = osparc.store.StaticInfo.getInstance().getPlatformName();
-        text += platformName.length ? ` (${platformName})` : " (production)";
-        versionLink.setValue(text);
-      }
+      const rData = osparc.store.StaticInfo.getInstance().getReleaseData();
+      const platformVersion = osparc.utils.LibVersions.getPlatformVersion();
+      let text = "osparc-simcore ";
+      text += (rData["tag"] && rData["tag"] !== "latest") ? rData["tag"] : platformVersion.version;
+      const platformName = osparc.store.StaticInfo.getInstance().getPlatformName();
+      text += platformName.length ? ` (${platformName})` : "";
+      const url = rData["url"] || osparc.utils.LibVersions.getVcsRefUrl();
+      versionLink.set({
+        value: text,
+        url
+      });
       versionLinkLayout.add(versionLink);
 
       const organizationLink = new osparc.ui.basic.LinkLabel().set({
         textColor: "text-darker"
       });
       const vendor = osparc.store.VendorInfo.getInstance().getVendor();
-      if (vendor) {
+      if (vendor && "url" in vendor && "copyright" in vendor) {
         organizationLink.set({
           value: vendor.copyright,
           url: vendor.url
