@@ -261,10 +261,6 @@ qx.Class.define("osparc.data.model.Node", {
       return (metaData && metaData.type && metaData.type === "dynamic");
     },
 
-    isInteractivePython: function(metaData) {
-      return (metaData && metaData.name && (metaData.name === "InteractivePythonservice" || metaData.name === "MapService") );
-    },
-
     isComputational: function(metaData) {
       return (metaData && metaData.type && metaData.type === "computational");
     },
@@ -376,10 +372,6 @@ qx.Class.define("osparc.data.model.Node", {
 
     isDynamic: function() {
       return osparc.data.model.Node.isDynamic(this.getMetaData());
-    },
-
-    isInteractivePython: function() {
-      return osparc.data.model.Node.isInteractivePython(this.getMetaData());
     },
 
     isComputational: function() {
@@ -1319,10 +1311,9 @@ qx.Class.define("osparc.data.model.Node", {
             isDynamicV2
           } = osparc.utils.Utils.computeServiceUrl(data);
           this.setDynamicV2(isDynamicV2);
-          if (srvUrl && false && !this.isInteractivePython()) {
+          if (srvUrl) {
             this.__waitForServiceReady(srvUrl);
           }
-          this.__serviceReadyIn(srvUrl);
           break;
         }
         case "complete":

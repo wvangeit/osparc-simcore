@@ -151,7 +151,7 @@ qx.Class.define("osparc.viewer.NodeViewer", {
             isDynamicV2
           } = osparc.utils.Utils.computeServiceUrl(data);
           this.setDynamicV2(isDynamicV2);
-          if (srvUrl && false) {
+          if (srvUrl) {
             this.__waitForServiceReady(srvUrl);
           }
           break;
