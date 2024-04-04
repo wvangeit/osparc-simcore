@@ -180,4 +180,3 @@ tests/public-api/osparc_python_wheels/*
 
 # osparc-config repo files
 repo.config
-build.sh
