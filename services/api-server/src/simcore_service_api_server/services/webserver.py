@@ -4,9 +4,10 @@
 import logging
 import typing
 import urllib.parse
+from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, Mapping
+from typing import Any
 from uuid import UUID
 
 import pydantic
@@ -85,7 +86,7 @@ _JOB_STATUS_MAP: Mapping = {
 _PROFILE_STATUS_MAP: Mapping = {
     status.HTTP_404_NOT_FOUND: (
         status.HTTP_404_NOT_FOUND,
-        lambda kwargs: "Could not find profile",
+        lambda _: "Could not find profile",
     )
 }
 
@@ -165,7 +166,7 @@ class AuthSession:
             {
                 status.HTTP_404_NOT_FOUND: (
                     status.HTTP_404_NOT_FOUND,
-                    lambda kwargs: "Could not list jobs",
+                    lambda _: "Could not list jobs",
                 )
             },
         ):
@@ -300,8 +301,7 @@ class AuthSession:
             json=jsonable_encoder(new_node_outputs),
         )
         response.raise_for_status()
-        data = Envelope[NodeOutputs].parse_raw(response.text).data
-        return data
+        return Envelope[NodeOutputs].parse_raw(response.text).data
 
     async def get_projects_w_solver_page(
         self, solver_name: str, limit: int, offset: int
@@ -411,9 +411,10 @@ class AuthSession:
         assert data  # nosec
         return data
 
+    @_exception_mapper({status.HTTP_404_NOT_FOUND: (status.HTTP_404_NOT_FOUND, None)})
     async def get_project_inputs(
         self, project_id: ProjectID
-    ) -> Envelope[dict[NodeID, dict[str, typing.Any]]]:
+    ) -> dict[NodeID, dict[str, typing.Any]]:
         response = await self.client.get(
             f"/projects/{project_id}/inputs",
             cookies=self.session_cookies,
@@ -421,18 +422,14 @@ class AuthSession:
 
         response.raise_for_status()
 
-        data = self._get_data_or_raise(
-            response,
-            {status.HTTP_404_NOT_FOUND: ProjectNotFoundError(project_id=project_id)},
+        return (
+            Envelope[dict[NodeID, dict[str, typing.Any]]].parse_raw(response.text).data
         )
 
-        assert data is not None  # nosec
-
-        return data
-
+    @_exception_mapper({status.HTTP_404_NOT_FOUND: (status.HTTP_404_NOT_FOUND, None)})
     async def get_project_outputs(
         self, project_id: ProjectID
-    ) -> Envelope[dict[NodeID, dict[str, pydantic.typing.Any]]]:
+    ) -> dict[NodeID, dict[str, pydantic.typing.Any]]:
         response = await self.client.get(
             f"/projects/{project_id}/outputs",
             cookies=self.session_cookies,
@@ -440,9 +437,8 @@ class AuthSession:
 
         response.raise_for_status()
 
-        data = self._get_data_or_raise(
-            response,
-            {status.HTTP_404_NOT_FOUND: ProjectNotFoundError(project_id=project_id)},
+        data = (
+            Envelope[dict[NodeID, dict[str, typing.Any]]].parse_raw(response.text).data
         )
 
         assert data is not None  # nosec
@@ -458,8 +454,7 @@ class AuthSession:
         )
 
         response.raise_for_status()
-        data = Envelope[PricingUnitGet].parse_raw(response.text).data
-        return data
+        return Envelope[PricingUnitGet].parse_raw(response.text).data
 
     @_exception_mapper({status.HTTP_404_NOT_FOUND: (status.HTTP_404_NOT_FOUND, None)})
     async def connect_pricing_unit_to_project_node(
@@ -521,8 +516,7 @@ class AuthSession:
             cookies=self.session_cookies,
         )
         response.raise_for_status()
-        data = Envelope[WalletGet].parse_raw(response.text).data
-        return data
+        return Envelope[WalletGet].parse_raw(response.text).data
 
     # PRODUCTS -------------------------------------------------
 

@@ -1,7 +1,8 @@
 """
-    Helper functions to convert models used in
-    services/api-server/src/simcore_service_api_server/api/routes/studies_jobs.py
+Helper functions to convert models used in
+services/api-server/src/simcore_service_api_server/api/routes/studies_jobs.py
 """
+
 import collections.abc
 from uuid import UUID
 
@@ -37,11 +38,15 @@ def get_project_and_file_inputs_from_job_inputs(
             )
 
     new_inputs = []
-    for node_id, node_dict in project_inputs.items():
-        if node_dict["label"] in job_inputs_dict:
-            new_inputs.append(
-                {"key": node_id, "value": job_inputs_dict[node_dict["label"]]}
-            )
+    if project_inputs is not None:
+        for node_id, node_dict in project_inputs.items():
+            if node_dict["label"] in job_inputs_dict:
+                new_inputs.append(
+                    {
+                        "key": node_id,
+                        "value": job_inputs_dict[node_dict["label"]],
+                    }
+                )
 
     return new_inputs, file_inputs
 

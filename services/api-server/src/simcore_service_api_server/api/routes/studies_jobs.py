@@ -67,8 +67,6 @@ async def list_study_jobs(
     "/{study_id:uuid}/jobs",
     response_model=Job,
     include_in_schema=API_SERVER_DEV_FEATURES_ENABLED,
-    status_code=status.HTTP_501_NOT_IMPLEMENTED,
-    response_description="Not implemented",
 )
 async def create_study_job(
     study_id: StudyID,
@@ -165,8 +163,6 @@ async def delete_study_job(
     "/{study_id:uuid}/jobs/{job_id:uuid}:start",
     response_model=JobStatus,
     include_in_schema=API_SERVER_DEV_FEATURES_ENABLED,
-    status_code=status.HTTP_501_NOT_IMPLEMENTED,
-    response_description="Not implemented",
 )
 async def start_study_job(
     study_id: StudyID,
@@ -192,8 +188,6 @@ async def start_study_job(
     "/{study_id:uuid}/jobs/{job_id:uuid}:stop",
     response_model=JobStatus,
     include_in_schema=API_SERVER_DEV_FEATURES_ENABLED,
-    status_code=status.HTTP_501_NOT_IMPLEMENTED,
-    response_description="Not implemented",
 )
 async def stop_study_job(
     study_id: StudyID,
@@ -215,8 +209,6 @@ async def stop_study_job(
     "/{study_id}/jobs/{job_id}:inspect",
     response_model=JobStatus,
     include_in_schema=API_SERVER_DEV_FEATURES_ENABLED,
-    status_code=status.HTTP_501_NOT_IMPLEMENTED,
-    response_description="Not implemented",
 )
 async def inspect_study_job(
     study_id: StudyID,
@@ -236,8 +228,6 @@ async def inspect_study_job(
     "/{study_id}/jobs/{job_id}/outputs",
     response_model=JobOutputs,
     include_in_schema=API_SERVER_DEV_FEATURES_ENABLED,
-    status_code=status.HTTP_501_NOT_IMPLEMENTED,
-    response_description="Not implemented",
 )
 async def get_study_job_outputs(
     study_id: StudyID,
