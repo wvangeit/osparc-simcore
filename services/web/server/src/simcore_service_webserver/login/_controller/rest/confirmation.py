@@ -16,6 +16,7 @@ from yarl import URL
 from ....locale import translate_message
 from ....products import products_web
 from ....products.models import Product
+from ....security import security_service
 from ....session.access_policies import session_access_required
 from ....utils import HOUR, MINUTE
 from ....utils_aiohttp import create_redirect_to_page_response
@@ -254,6 +255,7 @@ async def complete_reset_password(request: web.Request):
             verify_current_password=False,  # confirmed by code
         )
 
+        await security_service.revoke_user_sessions(request.app, user_email=user["email"])
         await confirmation_service.delete_confirmation(confirmation)
 
         return flash_response(translate_message(MSG_PASSWORD_CHANGED, request))

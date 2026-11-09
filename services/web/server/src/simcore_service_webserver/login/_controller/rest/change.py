@@ -12,6 +12,7 @@ from ....notifications import notifications_service
 from ....notifications.models import EmailContact
 from ....products import products_web
 from ....products.models import Product
+from ....security import security_service, security_web
 from ....users import users_service
 from ....utils import HOUR
 from ....utils_rate_limiting import global_rate_limit_route
@@ -235,5 +236,10 @@ async def change_password(request: web.Request):
         new_password=passwords.new.get_secret_value(),
         verify_current_password=False,
     )
+
+    # all other sessions (e.g. a stolen cookie) are logged out
+    assert user  # nosec
+    await security_service.revoke_user_sessions(request.app, user_email=user["email"])
+    await security_web.renew_identity(request)
 
     return flash_response(translate_message(MSG_PASSWORD_CHANGED, request))

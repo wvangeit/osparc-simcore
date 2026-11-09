@@ -2,6 +2,8 @@ from aiohttp import web
 from aiohttp_security.api import forget, remember
 from models_library.emails import LowerCaseEmailStr
 
+from ._identity_policy import renew_session_issue_time
+
 # Identification *string* for an authenticated user
 type IdentityStr = str
 
@@ -25,3 +27,8 @@ async def forget_identity(request: web.Request, response: web.Response) -> web.R
     """Forget = Drops verified identity stored in current session"""
     await forget(request, response)
     return response
+
+
+async def renew_identity(request: web.Request) -> None:
+    """Keeps the current session valid after revoking all the user's sessions"""
+    await renew_session_issue_time(request)

@@ -132,3 +132,39 @@ async def test_success(client: TestClient, new_password: str):
         assert response.status == status.HTTP_200_OK
         assert response.url.path == url_login.path
         await assert_status(response, status.HTTP_200_OK, MSG_LOGGED_IN)
+
+
+async def test_change_password_revokes_other_sessions(client: TestClient, new_password: str):
+    assert client.app
+    url_change_password = client.app.router["auth_change_password"].url_for()
+    url_profile = client.app.router["get_my_profile"].url_for()
+
+    async with LoggedUser(client) as user:
+        # e.g. a stolen cookie
+        other_session_cookies = client.session.cookie_jar.filter_cookies(client.make_url("/"))
+
+        response = await client.post(
+            f"{url_change_password}",
+            json={
+                "current": user["raw_password"],
+                "new": new_password,
+                "confirm": new_password,
+            },
+        )
+        await assert_status(response, status.HTTP_200_OK, MSG_PASSWORD_CHANGED)
+
+        # current session is kept
+        current_session_cookies = client.session.cookie_jar.filter_cookies(client.make_url("/"))
+        response = await client.get(f"{url_profile}")
+        await assert_status(response, status.HTTP_200_OK)
+
+        # the other one is logged out
+        client.session.cookie_jar.clear()
+        client.session.cookie_jar.update_cookies(other_session_cookies, client.make_url("/"))
+        response = await client.get(f"{url_profile}")
+        await assert_status(response, status.HTTP_401_UNAUTHORIZED)
+
+        client.session.cookie_jar.clear()
+        client.session.cookie_jar.update_cookies(current_session_cookies, client.make_url("/"))
+        response = await client.get(f"{url_profile}")
+        await assert_status(response, status.HTTP_200_OK)

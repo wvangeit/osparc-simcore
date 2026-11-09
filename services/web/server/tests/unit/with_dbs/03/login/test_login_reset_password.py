@@ -11,7 +11,7 @@ from aiohttp.test_utils import TestClient, TestServer
 from models_library.products import ProductName
 from pytest_mock import MockType
 from pytest_simcore.helpers.assert_checks import assert_status
-from pytest_simcore.helpers.webserver_login import NewUser, parse_test_marks
+from pytest_simcore.helpers.webserver_login import LoggedUser, NewUser, parse_test_marks
 from servicelib.aiohttp import status
 from servicelib.rest_constants import X_PRODUCT_NAME_HEADER
 from servicelib.utils_secrets import generate_password
@@ -126,6 +126,35 @@ async def test_two_steps_action_confirmation_workflow(
 
         # Ensure there are no warnings
         assert not any(record.levelname == "WARNING" for record in caplog.records), "Unexpected warnings found"
+
+
+async def test_reset_password_revokes_existing_sessions(
+    client: TestClient,
+    mocked_notifications_service_send_message_from_template: MockType,
+):
+    assert client.app
+    url_profile = client.app.router["get_my_profile"].url_for()
+
+    async with LoggedUser(client) as user:
+        response = await client.get(f"{url_profile}")
+        await assert_status(response, status.HTTP_200_OK)
+
+        # reset password with the link sent by email
+        reset_url = client.app.router["initiate_reset_password"].url_for()
+        response = await client.post(f"{reset_url}", json={"email": user["email"]})
+        await assert_status(response, status.HTTP_200_OK)
+
+        notification_context = mocked_notifications_service_send_message_from_template.call_args.kwargs["context"]
+        code = URL(notification_context["link"]).parts[-1]
+
+        new_password = generate_password(10)
+        complete_url = client.app.router["complete_reset_password"].url_for(code=code)
+        response = await client.post(f"{complete_url}", json={"password": new_password, "confirm": new_password})
+        await assert_status(response, status.HTTP_200_OK, MSG_PASSWORD_CHANGED)
+
+        # session opened before the reset is logged out
+        response = await client.get(f"{url_profile}")
+        await assert_status(response, status.HTTP_401_UNAUTHORIZED)
 
 
 async def test_unknown_email(

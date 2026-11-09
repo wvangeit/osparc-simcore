@@ -111,7 +111,7 @@ def mock_env_devel_environment(
 @pytest.fixture
 def mock_env_makefile(monkeypatch: pytest.MonkeyPatch) -> EnvVarsDict:
     """envvars produced @Makefile (export)"""
-    # TODO: add Makefile recipe 'make dump-envs' to produce the file we load here
+    # TODO: add Makefile recipe 'make dump-envs' to produce the file we load here  # noqa: FIX002
     return setenvs_from_dict(
         monkeypatch,
         {
@@ -140,7 +140,7 @@ def mock_env_makefile(monkeypatch: pytest.MonkeyPatch) -> EnvVarsDict:
 @pytest.fixture
 def mock_env_dockerfile_build(monkeypatch: pytest.MonkeyPatch) -> EnvVarsDict:
     #
-    # docker run -it --hostname "{{.Node.Hostname}}-{{.Service.Name}}-{{.Task.Slot}}" local/webserver:production printenv
+    # docker run -it --hostname "{{.Node.Hostname}}-{{.Service.Name}}-{{.Task.Slot}}" local/webserver:production printenv  # noqa: E501
     #
     return setenvs_from_envfile(
         monkeypatch,
@@ -188,7 +188,7 @@ def mock_webserver_service_environment(
     logging.getLogger().info("Composing %s service environment ... ", service_name)
 
     # @docker compose config (overrides)
-    # TODO: get from docker compose config
+    # TODO: get from docker compose config  # noqa: FIX002
     # r'- ([A-Z2_]+)=\$\{\1:-([\w-]+)\}'
 
     # - .env-devel + docker-compose service environs
@@ -265,9 +265,15 @@ def mocked_login_required(mocker: MockerFixture):
 
 @pytest.fixture
 def mocked_db_setup_in_setup_security(mocker: MockerFixture) -> MockType:
-    """Mocking avoids setting up a full db"""
-    import simcore_service_webserver.security.plugin
+    """Mocking avoids setting up a full db (and redis)"""
+    import simcore_service_webserver.security.plugin  # noqa: PLC0415
 
+    mocker.patch.object(
+        simcore_service_webserver.security.plugin,
+        "setup_redis",
+        autospec=True,
+        return_value=True,
+    )
     return mocker.patch.object(
         simcore_service_webserver.security.plugin,
         "setup_db",

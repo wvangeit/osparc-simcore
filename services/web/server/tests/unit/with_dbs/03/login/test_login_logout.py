@@ -38,3 +38,25 @@ async def test_logout(client: TestClient, confirmation_repository: ConfirmationR
         response = await client.get(f"{protected_url}")
         assert response.url.path == protected_url.path
         await assert_status(response, status.HTTP_401_UNAUTHORIZED)
+
+
+async def test_logout_revokes_a_copy_of_the_session_cookie(
+    client: TestClient, confirmation_repository: ConfirmationRepository
+):
+    assert client.app
+
+    logout_url = client.app.router["auth_logout"].url_for()
+    protected_url = client.app.router["get_my_profile"].url_for()
+
+    async with LoggedUser(client):
+        cookies_before_logout = client.session.cookie_jar.filter_cookies(client.make_url("/"))
+
+        response = await client.post(f"{logout_url}")
+        await assert_status(response, status.HTTP_200_OK)
+
+        # replays the cookie copied before logging out
+        client.session.cookie_jar.clear()
+        client.session.cookie_jar.update_cookies(cookies_before_logout, client.make_url("/"))
+
+        response = await client.get(f"{protected_url}")
+        await assert_status(response, status.HTTP_401_UNAUTHORIZED)

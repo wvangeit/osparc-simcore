@@ -32,13 +32,44 @@ from simcore_service_webserver.products._web_middlewares import (
 from simcore_service_webserver.products.models import Product
 from simcore_service_webserver.security.decorators import permission_required
 from simcore_service_webserver.security.plugin import setup_security
-from simcore_service_webserver.security.security_service import clean_auth_policy_cache
+from simcore_service_webserver.security.security_service import (
+    clean_auth_policy_cache,
+    revoke_user_sessions,
+)
 from simcore_service_webserver.security.security_web import (
     check_user_authorized,
     forget_identity,
     remember_identity,
+    renew_identity,
 )
 from simcore_service_webserver.session.settings import SessionSettings
+
+
+class FakeRedisForSessionRevocation:
+    """Minimal in-memory stand-in for the redis client used to store revoked sessions"""
+
+    def __init__(self) -> None:
+        self.data: dict[str, str] = {}
+        self.ttls: dict[str, int | None] = {}
+
+    async def set(self, key: str, value, ex: int | None = None) -> None:
+        self.data[key] = f"{value}"
+        self.ttls[key] = ex
+
+    async def mget(self, keys: list[str]) -> list[str | None]:
+        return [self.data.get(k) for k in keys]
+
+
+@pytest.fixture
+def fake_redis_for_session_revocation(mocker: MockerFixture) -> FakeRedisForSessionRevocation:
+    fake = FakeRedisForSessionRevocation()
+    mocker.patch(
+        "simcore_service_webserver.security._session_revocation_repository.get_redis_resources_client",
+        autospec=True,
+        return_value=fake,
+    )
+    return fake
+
 
 # Prototype concept -------------------------------------------------------
 #
@@ -65,6 +96,15 @@ async def _get_product_name(request: web.Request) -> ProductName | None:
 async def _forget_product_name(request: web.Request) -> ProductName | None:
     session = await get_session(request)
     return session.pop(_SESSION_PRODUCT_NAME_KEY, None)
+
+
+async def _revoke_all_sessions(request: web.Request):
+    await check_user_authorized(request)
+    body = await request.json()
+    await revoke_user_sessions(request.app, user_email=body["email"])
+    if body.get("keep_current"):
+        await renew_identity(request)
+    return web.json_response(status=status.HTTP_200_OK)
 
 
 # ------------------------------------------------------------------------
@@ -200,6 +240,8 @@ def app_routes(
         await check_user_authorized(request)
         return await forget_identity(request, web.HTTPOk())
 
+    routes.post("/v0/revoke-all-sessions")(_revoke_all_sessions)
+
     return routes
 
 
@@ -212,6 +254,7 @@ async def client(
     app_routes: RouteTableDef,
     mock_env_devel_environment: EnvVarsDict,
     mocked_db_setup_in_setup_security: MockType,
+    fake_redis_for_session_revocation: FakeRedisForSessionRevocation,
 ):
     app = web.Application()
     app.router.add_routes(app_routes)
@@ -221,6 +264,12 @@ async def client(
     print(session_settings.model_dump_json(indent=1))
     mocker.patch(
         "simcore_service_webserver.session.plugin.get_plugin_settings",
+        autospec=True,
+        return_value=session_settings,
+    )
+
+    mocker.patch(
+        "simcore_service_webserver.security._session_revocation_service.get_session_settings",
         autospec=True,
         return_value=session_settings,
     )
@@ -438,3 +487,134 @@ async def test_time_overhead_on_handlers_of_auth_decorators(
     msg = f"got {elapsed_ratio=} from medians {elapsed_ns=}ns and {ref_elapsed_ns=}ns after {num_of_rounds=}"
     print(msg.capitalize())
     assert elapsed_ns < ref_elapsed_ns * (1 + 1.6), msg
+
+
+async def _login(client: TestClient, email: str = "foo@email.com") -> None:
+    resp = await client.get("/")
+    assert resp.ok, f"error: {await resp.text()}"
+    resp = await client.post("/v0/login", json={"email": email, "password": "secret"})
+    assert resp.ok, f"error: {await resp.text()}"
+
+
+def _get_cookies(client: TestClient):
+    return client.session.cookie_jar.filter_cookies(client.make_url("/"))
+
+
+def _replace_cookies(client: TestClient, cookies) -> None:
+    client.session.cookie_jar.clear()
+    client.session.cookie_jar.update_cookies(cookies, client.make_url("/"))
+
+
+async def test_logout_revokes_a_copy_of_the_session_cookie(
+    client: TestClient,
+    get_active_user_or_none_dbmock: MagicMock,
+    is_user_in_product_name_dbmock: MagicMock,
+    fake_redis_for_session_revocation: FakeRedisForSessionRevocation,
+):
+    await _login(client)
+    cookies_before_logout = _get_cookies(client)
+
+    resp = await client.post("/v0/admin")
+    assert resp.ok, f"error: {await resp.text()}"
+
+    resp = await client.post("/v0/logout")
+    assert resp.ok, f"error: {await resp.text()}"
+
+    # replays the cookie copied before the logout
+    _replace_cookies(client, cookies_before_logout)
+    resp = await client.post("/v0/admin")
+    assert resp.status == status.HTTP_401_UNAUTHORIZED, f"error: {await resp.text()}"
+
+    assert len(fake_redis_for_session_revocation.data) == 1
+    assert all(ttl for ttl in fake_redis_for_session_revocation.ttls.values()), "revocations must expire"
+
+
+async def test_new_login_gets_a_new_session_id(
+    client: TestClient,
+    get_active_user_or_none_dbmock: MagicMock,
+    is_user_in_product_name_dbmock: MagicMock,
+    fake_redis_for_session_revocation: FakeRedisForSessionRevocation,
+):
+    await _login(client)
+    resp = await client.post("/v0/logout")
+    assert resp.ok
+
+    # logging in again is not affected by the previous revocation
+    await _login(client)
+    resp = await client.post("/v0/admin")
+    assert resp.ok, f"error: {await resp.text()}"
+
+
+async def test_revoking_all_user_sessions_logs_out_other_sessions(
+    client: TestClient,
+    get_active_user_or_none_dbmock: MagicMock,
+    is_user_in_product_name_dbmock: MagicMock,
+    fake_redis_for_session_revocation: FakeRedisForSessionRevocation,
+):
+    # first session, e.g. a copied cookie
+    await _login(client)
+    first_session_cookies = _get_cookies(client)
+
+    # second session, e.g. the user changing the password
+    client.session.cookie_jar.clear()
+    await _login(client)
+    second_session_cookies = _get_cookies(client)
+
+    resp = await client.post(
+        "/v0/revoke-all-sessions",
+        json={"email": "foo@email.com", "keep_current": True},
+    )
+    assert resp.ok, f"error: {await resp.text()}"
+
+    # the current session is kept
+    resp = await client.post("/v0/admin")
+    assert resp.ok, f"error: {await resp.text()}"
+
+    _replace_cookies(client, first_session_cookies)
+    resp = await client.post("/v0/admin")
+    assert resp.status == status.HTTP_401_UNAUTHORIZED, f"error: {await resp.text()}"
+
+    # the same happens with the cookie of the second session, before it was renewed
+    _replace_cookies(client, second_session_cookies)
+    resp = await client.post("/v0/admin")
+    assert resp.status == status.HTTP_401_UNAUTHORIZED, f"error: {await resp.text()}"
+
+
+async def test_revoking_all_user_sessions_does_not_affect_other_users(
+    client: TestClient,
+    get_active_user_or_none_dbmock: MagicMock,
+    is_user_in_product_name_dbmock: MagicMock,
+    fake_redis_for_session_revocation: FakeRedisForSessionRevocation,
+):
+    await _login(client)
+
+    resp = await client.post(
+        "/v0/revoke-all-sessions",
+        json={"email": "bar@email.com", "keep_current": False},
+    )
+    assert resp.ok, f"error: {await resp.text()}"
+
+    resp = await client.post("/v0/admin")
+    assert resp.ok, f"error: {await resp.text()}"
+
+
+async def test_session_without_revocation_data_is_valid_until_user_sessions_are_revoked(
+    client: TestClient,
+    get_active_user_or_none_dbmock: MagicMock,
+    is_user_in_product_name_dbmock: MagicMock,
+    fake_redis_for_session_revocation: FakeRedisForSessionRevocation,
+):
+    # session created before revocation existed: only has the identity
+    await _login(client)
+    assert client.app
+    resp = await client.post("/v0/admin")
+    assert resp.ok
+
+    resp = await client.post(
+        "/v0/revoke-all-sessions",
+        json={"email": "foo@email.com", "keep_current": False},
+    )
+    assert resp.ok
+
+    resp = await client.post("/v0/admin")
+    assert resp.status == status.HTTP_401_UNAUTHORIZED, f"error: {await resp.text()}"

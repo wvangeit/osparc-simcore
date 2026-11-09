@@ -14,11 +14,12 @@ from aiohttp import web
 
 from ..application_setup import ModuleCategory, app_setup_func
 from ..db.plugin import setup_db
+from ..redis import setup_redis
 from ..session.plugin import setup_session
 from ._authz_access_model import RoleBasedAccessModel
 from ._authz_access_roles import ROLES_PERMISSIONS
 from ._authz_policy import AuthorizationPolicy
-from ._identity_policy import SessionIdentityPolicy
+from ._identity_policy import RevocableSessionIdentityPolicy
 
 _logger = logging.getLogger(__name__)
 
@@ -29,9 +30,10 @@ def setup_security(app: web.Application):
     #       The logic about the product is obtained via the security repository
     setup_session(app)
     setup_db(app)
+    setup_redis(app)  # revoked sessions
 
     # Identity Policy: uses sessions to identify (SEE how sessions are setup in session/plugin.py)
-    identity_policy = SessionIdentityPolicy()
+    identity_policy = RevocableSessionIdentityPolicy()
 
     # Authorization Policy: role-based access model
     role_based_access_model = RoleBasedAccessModel.from_rawdata(ROLES_PERMISSIONS)
