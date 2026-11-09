@@ -30,6 +30,7 @@ from simcore_service_webserver.products._web_middlewares import (
     discover_product_middleware,
 )
 from simcore_service_webserver.products.models import Product
+from simcore_service_webserver.security._session_revocation_service import is_session_valid
 from simcore_service_webserver.security.decorators import permission_required
 from simcore_service_webserver.security.plugin import setup_security
 from simcore_service_webserver.security.security_service import (
@@ -598,23 +599,41 @@ async def test_revoking_all_user_sessions_does_not_affect_other_users(
     assert resp.ok, f"error: {await resp.text()}"
 
 
-async def test_session_without_revocation_data_is_valid_until_user_sessions_are_revoked(
-    client: TestClient,
-    get_active_user_or_none_dbmock: MagicMock,
-    is_user_in_product_name_dbmock: MagicMock,
-    fake_redis_for_session_revocation: FakeRedisForSessionRevocation,
-):
-    # session created before revocation existed: only has the identity
-    await _login(client)
-    assert client.app
-    resp = await client.post("/v0/admin")
-    assert resp.ok
-
-    resp = await client.post(
-        "/v0/revoke-all-sessions",
-        json={"email": "foo@email.com", "keep_current": False},
+@pytest.fixture
+def session_settings_mock(mocker: MockerFixture) -> MagicMock:
+    settings = MagicMock()
+    settings.SESSION_COOKIE_MAX_AGE = 3600
+    mocker.patch(
+        "simcore_service_webserver.security._session_revocation_service.get_session_settings",
+        autospec=True,
+        return_value=settings,
     )
-    assert resp.ok
+    return settings
 
-    resp = await client.post("/v0/admin")
-    assert resp.status == status.HTTP_401_UNAUTHORIZED, f"error: {await resp.text()}"
+
+async def test_session_without_issue_time_is_not_revoked_with_user_sessions(
+    fake_redis_for_session_revocation: FakeRedisForSessionRevocation,
+    session_settings_mock: MagicMock,
+):
+    # e.g. cookies minted by the api-server, which only have the identity
+    app = web.Application()
+    await revoke_user_sessions(app, user_email="foo@email.com")
+
+    assert await is_session_valid(app, user_email="foo@email.com", session_id=None, issued_at=None)
+
+
+async def test_session_issued_before_revocation_or_too_old_is_invalid(
+    fake_redis_for_session_revocation: FakeRedisForSessionRevocation,
+    session_settings_mock: MagicMock,
+):
+    app = web.Application()
+    before_revocation = time.time() - 10
+
+    await revoke_user_sessions(app, user_email="foo@email.com")
+
+    assert not await is_session_valid(app, user_email="foo@email.com", session_id="a", issued_at=before_revocation)
+    assert await is_session_valid(app, user_email="foo@email.com", session_id="a", issued_at=time.time())
+    assert await is_session_valid(app, user_email="bar@email.com", session_id="b", issued_at=before_revocation)
+
+    too_old = time.time() - session_settings_mock.SESSION_COOKIE_MAX_AGE - 1
+    assert not await is_session_valid(app, user_email="bar@email.com", session_id="b", issued_at=too_old)

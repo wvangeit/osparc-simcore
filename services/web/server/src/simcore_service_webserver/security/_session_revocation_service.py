@@ -49,8 +49,9 @@ async def is_session_valid(
 ) -> bool:
     """
 
-    NOTE: sessions created before revocation was introduced have neither id nor issue time:
-    they cannot be revoked individually but are revoked with all the user's sessions.
+    NOTE: sessions without issue time are not revoked with the user's sessions. These are the
+    ones created before revocation was introduced and the ones minted by the api-server,
+    which has to keep acting on behalf of the user (e.g. after a password change).
     """
     if issued_at is not None and time.time() - issued_at > _get_max_session_age_secs(app):
         return False
@@ -61,4 +62,4 @@ async def is_session_valid(
     if session_revoked:
         return False
 
-    return revoked_before is None or (issued_at or 0.0) >= revoked_before
+    return revoked_before is None or issued_at is None or issued_at >= revoked_before
