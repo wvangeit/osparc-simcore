@@ -3,6 +3,7 @@
 # pylint: disable=unused-variable
 # pylint: disable=too-many-arguments
 
+import fnmatch
 import statistics
 import time
 from collections import OrderedDict
@@ -17,6 +18,7 @@ from aiohttp.web import RouteTableDef
 from aiohttp_session import get_session
 from models_library.emails import LowerCaseEmailStr
 from models_library.products import ProductName
+from models_library.users import UserID
 from pydantic import TypeAdapter
 from pytest_mock import MockerFixture, MockType
 from pytest_simcore.helpers.typing_env import EnvVarsDict
@@ -30,24 +32,24 @@ from simcore_service_webserver.products._web_middlewares import (
     discover_product_middleware,
 )
 from simcore_service_webserver.products.models import Product
-from simcore_service_webserver.security._session_revocation_service import is_session_valid
+from simcore_service_webserver.security._login_session_service import is_session_active
 from simcore_service_webserver.security.decorators import permission_required
 from simcore_service_webserver.security.plugin import setup_security
 from simcore_service_webserver.security.security_service import (
     clean_auth_policy_cache,
-    revoke_user_sessions,
+    remove_user_sessions,
 )
 from simcore_service_webserver.security.security_web import (
     check_user_authorized,
     forget_identity,
+    forget_other_user_sessions,
     remember_identity,
-    renew_identity,
 )
 from simcore_service_webserver.session.settings import SessionSettings
 
 
-class FakeRedisForSessionRevocation:
-    """Minimal in-memory stand-in for the redis client used to store revoked sessions"""
+class FakeRedisForLoginSessions:
+    """Minimal in-memory stand-in for the redis client used to store the login sessions"""
 
     def __init__(self) -> None:
         self.data: dict[str, str] = {}
@@ -57,15 +59,25 @@ class FakeRedisForSessionRevocation:
         self.data[key] = f"{value}"
         self.ttls[key] = ex
 
-    async def mget(self, keys: list[str]) -> list[str | None]:
-        return [self.data.get(k) for k in keys]
+    async def exists(self, key: str) -> int:
+        return int(key in self.data)
+
+    async def delete(self, *keys: str) -> None:
+        for key in keys:
+            self.data.pop(key, None)
+            self.ttls.pop(key, None)
+
+    async def scan_iter(self, match: str):
+        for key in list(self.data):
+            if fnmatch.fnmatchcase(key, match):
+                yield key
 
 
 @pytest.fixture
-def fake_redis_for_session_revocation(mocker: MockerFixture) -> FakeRedisForSessionRevocation:
-    fake = FakeRedisForSessionRevocation()
+def fake_redis_for_login_sessions(mocker: MockerFixture) -> FakeRedisForLoginSessions:
+    fake = FakeRedisForLoginSessions()
     mocker.patch(
-        "simcore_service_webserver.security._session_revocation_repository.get_redis_resources_client",
+        "simcore_service_webserver.security._login_session_repository.get_redis_resources_client",
         autospec=True,
         return_value=fake,
     )
@@ -99,12 +111,13 @@ async def _forget_product_name(request: web.Request) -> ProductName | None:
     return session.pop(_SESSION_PRODUCT_NAME_KEY, None)
 
 
-async def _revoke_all_sessions(request: web.Request):
+async def _remove_user_sessions(request: web.Request):
     await check_user_authorized(request)
     body = await request.json()
-    await revoke_user_sessions(request.app, user_email=body["email"])
     if body.get("keep_current"):
-        await renew_identity(request)
+        await forget_other_user_sessions(request, user_id=body["user_id"])
+    else:
+        await remove_user_sessions(request.app, user_id=body["user_id"])
     return web.json_response(status=status.HTTP_200_OK)
 
 
@@ -137,27 +150,22 @@ def expected_product_name():
 
 @pytest.fixture
 def app_products(expected_product_name: ProductName) -> OrderedDict[str, Product]:
-    column_defaults: dict[str, Any] = {c.name: f"{c.server_default.arg}" for c in products.columns if c.server_default}
+    column_defaults: dict[str, Any] = {
+        c.name: f"{c.server_default.arg}"  # pyright: ignore[reportAttributeAccessIssue]
+        for c in products.columns
+        if c.server_default
+    }
     column_defaults["login_settings"] = LOGIN_SETTINGS_DEFAULT
 
     pp: OrderedDict[str, Product] = OrderedDict()
-    pp["tis"] = Product(
-        name="tis",
-        host_regex="tis",
-        base_url="https://tip.io",
-        **column_defaults,
+    pp["tis"] = Product.model_validate(
+        {"name": "tis", "host_regex": "tis", "base_url": "https://tip.io", **column_defaults}
     )
-    pp["osparc"] = Product(
-        name="osparc",
-        host_regex="osparc",
-        base_url="https://osparc.io",
-        **column_defaults,
+    pp["osparc"] = Product.model_validate(
+        {"name": "osparc", "host_regex": "osparc", "base_url": "https://osparc.io", **column_defaults}
     )
-    pp["s4l"] = Product(
-        name="s4l",
-        host_regex="s4l",
-        base_url="https://s4l.io",
-        **column_defaults,
+    pp["s4l"] = Product.model_validate(
+        {"name": "s4l", "host_regex": "s4l", "base_url": "https://s4l.io", **column_defaults}
     )
 
     assert expected_product_name in pp
@@ -220,7 +228,7 @@ def app_routes(
             raise web.HTTPUnauthorized(text="wrong password")
 
         # if all good, let's update session with
-        return await remember_identity(request, web.HTTPOk(), user_email=email)
+        return await remember_identity(request, web.HTTPOk(), user_email=email, user_id=registered_users[email]["id"])
 
     @routes.post("/v0/public")
     async def _public(request: web.Request):
@@ -241,7 +249,7 @@ def app_routes(
         await check_user_authorized(request)
         return await forget_identity(request, web.HTTPOk())
 
-    routes.post("/v0/revoke-all-sessions")(_revoke_all_sessions)
+    routes.post("/v0/remove-user-sessions")(_remove_user_sessions)
 
     return routes
 
@@ -255,7 +263,7 @@ async def client(
     app_routes: RouteTableDef,
     mock_env_devel_environment: EnvVarsDict,
     mocked_db_setup_in_setup_security: MockType,
-    fake_redis_for_session_revocation: FakeRedisForSessionRevocation,
+    fake_redis_for_login_sessions: FakeRedisForLoginSessions,
 ):
     app = web.Application()
     app.router.add_routes(app_routes)
@@ -270,7 +278,7 @@ async def client(
     )
 
     mocker.patch(
-        "simcore_service_webserver.security._session_revocation_service.get_session_settings",
+        "simcore_service_webserver.security._login_session_service.get_session_settings",
         autospec=True,
         return_value=session_settings,
     )
@@ -506,11 +514,29 @@ def _replace_cookies(client: TestClient, cookies) -> None:
     client.session.cookie_jar.update_cookies(cookies, client.make_url("/"))
 
 
-async def test_logout_revokes_a_copy_of_the_session_cookie(
+def _registered_session_keys(fake: FakeRedisForLoginSessions) -> list[str]:
+    return [k for k in fake.data if ":login_session_id=" in k]
+
+
+async def test_login_registers_an_expiring_session(
     client: TestClient,
     get_active_user_or_none_dbmock: MagicMock,
     is_user_in_product_name_dbmock: MagicMock,
-    fake_redis_for_session_revocation: FakeRedisForSessionRevocation,
+    fake_redis_for_login_sessions: FakeRedisForLoginSessions,
+):
+    await _login(client)
+
+    # grouped per user_id, as the keys of the resource manager
+    (session_key,) = _registered_session_keys(fake_redis_for_login_sessions)
+    assert session_key.startswith("user_id=1:login_session_id=")
+    assert fake_redis_for_login_sessions.ttls[session_key]
+
+
+async def test_logout_removes_the_session_and_rejects_a_copy_of_the_cookie(
+    client: TestClient,
+    get_active_user_or_none_dbmock: MagicMock,
+    is_user_in_product_name_dbmock: MagicMock,
+    fake_redis_for_login_sessions: FakeRedisForLoginSessions,
 ):
     await _login(client)
     cookies_before_logout = _get_cookies(client)
@@ -521,36 +547,52 @@ async def test_logout_revokes_a_copy_of_the_session_cookie(
     resp = await client.post("/v0/logout")
     assert resp.ok, f"error: {await resp.text()}"
 
-    # replays the cookie copied before the logout
+    assert not _registered_session_keys(fake_redis_for_login_sessions)
+
+    # replays the cookie copied before logging out
     _replace_cookies(client, cookies_before_logout)
     resp = await client.post("/v0/admin")
     assert resp.status == status.HTTP_401_UNAUTHORIZED, f"error: {await resp.text()}"
-
-    assert len(fake_redis_for_session_revocation.data) == 1
-    assert all(ttl for ttl in fake_redis_for_session_revocation.ttls.values()), "revocations must expire"
 
 
 async def test_new_login_gets_a_new_session_id(
     client: TestClient,
     get_active_user_or_none_dbmock: MagicMock,
     is_user_in_product_name_dbmock: MagicMock,
-    fake_redis_for_session_revocation: FakeRedisForSessionRevocation,
+    fake_redis_for_login_sessions: FakeRedisForLoginSessions,
 ):
     await _login(client)
     resp = await client.post("/v0/logout")
     assert resp.ok
 
-    # logging in again is not affected by the previous revocation
     await _login(client)
     resp = await client.post("/v0/admin")
     assert resp.ok, f"error: {await resp.text()}"
+    assert len(_registered_session_keys(fake_redis_for_login_sessions)) == 1
 
 
-async def test_revoking_all_user_sessions_logs_out_other_sessions(
+async def test_login_again_in_the_same_session_replaces_the_session(
     client: TestClient,
     get_active_user_or_none_dbmock: MagicMock,
     is_user_in_product_name_dbmock: MagicMock,
-    fake_redis_for_session_revocation: FakeRedisForSessionRevocation,
+    fake_redis_for_login_sessions: FakeRedisForLoginSessions,
+):
+    await _login(client)
+    first_cookies = _get_cookies(client)
+
+    await _login(client)
+    assert len(_registered_session_keys(fake_redis_for_login_sessions)) == 1
+
+    _replace_cookies(client, first_cookies)
+    resp = await client.post("/v0/admin")
+    assert resp.status == status.HTTP_401_UNAUTHORIZED, f"error: {await resp.text()}"
+
+
+async def test_removing_other_user_sessions_keeps_the_current_one(
+    client: TestClient,
+    get_active_user_or_none_dbmock: MagicMock,
+    is_user_in_product_name_dbmock: MagicMock,
+    fake_redis_for_login_sessions: FakeRedisForLoginSessions,
 ):
     # first session, e.g. a copied cookie
     await _login(client)
@@ -559,15 +601,15 @@ async def test_revoking_all_user_sessions_logs_out_other_sessions(
     # second session, e.g. the user changing the password
     client.session.cookie_jar.clear()
     await _login(client)
-    second_session_cookies = _get_cookies(client)
+    assert len(_registered_session_keys(fake_redis_for_login_sessions)) == 2
 
     resp = await client.post(
-        "/v0/revoke-all-sessions",
-        json={"email": "foo@email.com", "keep_current": True},
+        "/v0/remove-user-sessions",
+        json={"user_id": 1, "keep_current": True},
     )
     assert resp.ok, f"error: {await resp.text()}"
+    assert len(_registered_session_keys(fake_redis_for_login_sessions)) == 1
 
-    # the current session is kept
     resp = await client.post("/v0/admin")
     assert resp.ok, f"error: {await resp.text()}"
 
@@ -575,23 +617,37 @@ async def test_revoking_all_user_sessions_logs_out_other_sessions(
     resp = await client.post("/v0/admin")
     assert resp.status == status.HTTP_401_UNAUTHORIZED, f"error: {await resp.text()}"
 
-    # the same happens with the cookie of the second session, before it was renewed
-    _replace_cookies(client, second_session_cookies)
-    resp = await client.post("/v0/admin")
-    assert resp.status == status.HTTP_401_UNAUTHORIZED, f"error: {await resp.text()}"
 
-
-async def test_revoking_all_user_sessions_does_not_affect_other_users(
+async def test_removing_all_user_sessions_logs_out_the_current_one_too(
     client: TestClient,
     get_active_user_or_none_dbmock: MagicMock,
     is_user_in_product_name_dbmock: MagicMock,
-    fake_redis_for_session_revocation: FakeRedisForSessionRevocation,
+    fake_redis_for_login_sessions: FakeRedisForLoginSessions,
 ):
     await _login(client)
 
     resp = await client.post(
-        "/v0/revoke-all-sessions",
-        json={"email": "bar@email.com", "keep_current": False},
+        "/v0/remove-user-sessions",
+        json={"user_id": 1, "keep_current": False},
+    )
+    assert resp.ok, f"error: {await resp.text()}"
+    assert not _registered_session_keys(fake_redis_for_login_sessions)
+
+    resp = await client.post("/v0/admin")
+    assert resp.status == status.HTTP_401_UNAUTHORIZED, f"error: {await resp.text()}"
+
+
+async def test_removing_sessions_of_a_user_does_not_affect_other_users(
+    client: TestClient,
+    get_active_user_or_none_dbmock: MagicMock,
+    is_user_in_product_name_dbmock: MagicMock,
+    fake_redis_for_login_sessions: FakeRedisForLoginSessions,
+):
+    await _login(client)
+
+    resp = await client.post(
+        "/v0/remove-user-sessions",
+        json={"user_id": 2, "keep_current": False},
     )
     assert resp.ok, f"error: {await resp.text()}"
 
@@ -604,36 +660,52 @@ def session_settings_mock(mocker: MockerFixture) -> MagicMock:
     settings = MagicMock()
     settings.SESSION_COOKIE_MAX_AGE = 3600
     mocker.patch(
-        "simcore_service_webserver.security._session_revocation_service.get_session_settings",
+        "simcore_service_webserver.security._login_session_service.get_session_settings",
         autospec=True,
         return_value=settings,
     )
     return settings
 
 
-async def test_session_without_issue_time_is_not_revoked_with_user_sessions(
-    fake_redis_for_session_revocation: FakeRedisForSessionRevocation,
+_USER_ID = UserID(1)
+_OTHER_USER_ID = UserID(2)
+
+
+async def test_session_without_id_is_accepted(
+    fake_redis_for_login_sessions: FakeRedisForLoginSessions,
     session_settings_mock: MagicMock,
 ):
     # e.g. cookies minted by the api-server, which only have the identity
-    app = web.Application()
-    await revoke_user_sessions(app, user_email="foo@email.com")
-
-    assert await is_session_valid(app, user_email="foo@email.com", session_id=None, issued_at=None)
+    assert await is_session_active(web.Application(), user_id=None, session_id=None)
+    assert await is_session_active(web.Application(), user_id=_USER_ID, session_id=None)
 
 
-async def test_session_issued_before_revocation_or_too_old_is_invalid(
-    fake_redis_for_session_revocation: FakeRedisForSessionRevocation,
+async def test_session_is_only_active_if_registered_for_that_user(
+    fake_redis_for_login_sessions: FakeRedisForLoginSessions,
     session_settings_mock: MagicMock,
 ):
     app = web.Application()
-    before_revocation = time.time() - 10
+    await fake_redis_for_login_sessions.set("user_id=1:login_session_id=abc", 1, ex=60)
 
-    await revoke_user_sessions(app, user_email="foo@email.com")
+    assert await is_session_active(app, user_id=_USER_ID, session_id="abc")
+    assert not await is_session_active(app, user_id=_OTHER_USER_ID, session_id="abc")
+    assert not await is_session_active(app, user_id=_USER_ID, session_id="unknown")
+    assert not await is_session_active(app, user_id=None, session_id="abc")
 
-    assert not await is_session_valid(app, user_email="foo@email.com", session_id="a", issued_at=before_revocation)
-    assert await is_session_valid(app, user_email="foo@email.com", session_id="a", issued_at=time.time())
-    assert await is_session_valid(app, user_email="bar@email.com", session_id="b", issued_at=before_revocation)
 
-    too_old = time.time() - session_settings_mock.SESSION_COOKIE_MAX_AGE - 1
-    assert not await is_session_valid(app, user_email="bar@email.com", session_id="b", issued_at=too_old)
+async def test_removing_user_sessions_does_not_match_other_user_ids(
+    fake_redis_for_login_sessions: FakeRedisForLoginSessions,
+    session_settings_mock: MagicMock,
+):
+    app = web.Application()
+    for user_id in (1, 11):
+        await fake_redis_for_login_sessions.set(f"user_id={user_id}:login_session_id=abc", 1, ex=60)
+    # keys of the resource manager are not touched
+    await fake_redis_for_login_sessions.set("user_id=1:client_session_id=xyz:alive", 1, ex=60)
+
+    await remove_user_sessions(app, user_id=_USER_ID)
+
+    assert set(fake_redis_for_login_sessions.data) == {
+        "user_id=11:login_session_id=abc",
+        "user_id=1:client_session_id=xyz:alive",
+    }

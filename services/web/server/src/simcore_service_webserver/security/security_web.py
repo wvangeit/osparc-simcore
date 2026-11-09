@@ -12,7 +12,7 @@ from ._authz_web import (
     is_anonymous,
 )
 from ._constants import PERMISSION_PRODUCT_LOGIN_KEY
-from ._identity_web import forget_identity, remember_identity, renew_identity
+from ._identity_web import forget_identity, forget_other_user_sessions, remember_identity
 
 __all__: tuple[str, ...] = (
     "PERMISSION_PRODUCT_LOGIN_KEY",
@@ -20,9 +20,9 @@ __all__: tuple[str, ...] = (
     "check_user_authorized",
     "check_user_permission",
     "forget_identity",
+    "forget_other_user_sessions",
     "is_anonymous",
     "remember_identity",
-    "renew_identity",
 )
 
 # nopycln: file  # noqa: ERA001

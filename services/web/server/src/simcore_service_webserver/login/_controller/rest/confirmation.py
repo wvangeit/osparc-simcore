@@ -255,7 +255,7 @@ async def complete_reset_password(request: web.Request):
             verify_current_password=False,  # confirmed by code
         )
 
-        await security_service.revoke_user_sessions(request.app, user_email=user["email"])
+        await security_service.remove_user_sessions(request.app, user_id=user["id"])
         await confirmation_service.delete_confirmation(confirmation)
 
         return flash_response(translate_message(MSG_PASSWORD_CHANGED, request))

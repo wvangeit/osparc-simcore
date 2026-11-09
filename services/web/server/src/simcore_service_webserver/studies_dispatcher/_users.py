@@ -222,4 +222,5 @@ async def ensure_authentication(user: UserInfo, request: web.Request, response: 
             request,
             response,
             user_email=user.email,
+            user_id=user.id,
         )

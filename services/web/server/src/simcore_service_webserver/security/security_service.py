@@ -10,7 +10,7 @@ from ._authz_service import (
     get_access_model,
     password_needs_rehash,
 )
-from ._session_revocation_service import revoke_user_sessions
+from ._login_session_service import remove_user_sessions
 
 __all__: tuple[str, ...] = (
     "check_password",
@@ -18,7 +18,7 @@ __all__: tuple[str, ...] = (
     "encrypt_password",
     "get_access_model",
     "password_needs_rehash",
-    "revoke_user_sessions",
+    "remove_user_sessions",
 )
 
 # nopycln: file  # noqa: ERA001

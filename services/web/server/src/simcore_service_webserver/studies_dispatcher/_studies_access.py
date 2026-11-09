@@ -303,6 +303,7 @@ async def get_redirection_to_study_page(request: web.Request) -> web.Response:
             request,
             response,
             user_email=user["email"],
+            user_id=user["id"],
         )
 
         # NOTE: session is encrypted and stored in a cookie in the session middleware

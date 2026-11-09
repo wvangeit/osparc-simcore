@@ -42,4 +42,5 @@ async def login_granted_response(
             request=request,
             response=response,
             user_email=email,
+            user_id=user["id"],
         )

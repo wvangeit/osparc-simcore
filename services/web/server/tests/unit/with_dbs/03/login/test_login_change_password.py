@@ -138,10 +138,19 @@ async def test_change_password_revokes_other_sessions(client: TestClient, new_pa
     assert client.app
     url_change_password = client.app.router["auth_change_password"].url_for()
     url_profile = client.app.router["get_my_profile"].url_for()
+    url_login = client.app.router["auth_login"].url_for()
 
     async with LoggedUser(client) as user:
         # e.g. a stolen cookie
         other_session_cookies = client.session.cookie_jar.filter_cookies(client.make_url("/"))
+
+        # the user logs in again, in another session, and changes the password there
+        client.session.cookie_jar.clear()
+        response = await client.post(
+            f"{url_login}",
+            json={"email": user["email"], "password": user["raw_password"]},
+        )
+        await assert_status(response, status.HTTP_200_OK, MSG_LOGGED_IN)
 
         response = await client.post(
             f"{url_change_password}",

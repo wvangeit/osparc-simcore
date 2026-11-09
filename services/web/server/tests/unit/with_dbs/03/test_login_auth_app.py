@@ -127,7 +127,7 @@ async def web_server(
     async def test_login(request: web.Request) -> web.Response:
         data = await request.json()
         response = web.Response(status=200)
-        return await security_web.remember_identity(request, response, user_email=data["email"])
+        return await security_web.remember_identity(request, response, user_email=data["email"], user_id=data["id"])
 
     async def test_logout(request: web.Request) -> web.Response:
         response = web.Response(status=200)
@@ -151,7 +151,7 @@ async def test_check_endpoint_in_auth_app(client: TestClient, user: UserInfoDict
     await assert_status(response, status.HTTP_401_UNAUTHORIZED)
 
     # Sign in using test login route
-    await client.post("/v0/test/login", json={"email": user["email"]})
+    await client.post("/v0/test/login", json={"email": user["email"], "id": user["id"]})
 
     # Now user should be authorized
     response = await client.get("/v0/auth:check")
